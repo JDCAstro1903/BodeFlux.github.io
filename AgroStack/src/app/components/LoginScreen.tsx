@@ -1,26 +1,47 @@
 import { useState } from 'react';
-import { User, Lock, Package, TrendingUp, ShoppingCart } from 'lucide-react';
+import { User, Lock, Package, TrendingUp, ShoppingCart, Loader2 } from 'lucide-react';
 
 type UserRole = 'warehouse' | 'sales' | 'executive';
 
 interface LoginScreenProps {
-  onLogin: (role: UserRole) => void;
+  onLogin: (employeeId: string, password: string) => Promise<void>;
+  error?: string | null;
 }
 
-export function LoginScreen({ onLogin }: LoginScreenProps) {
+export function LoginScreen({ onLogin, error: externalError }: LoginScreenProps) {
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const displayError = localError || externalError;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedRole) {
-      onLogin(selectedRole);
+    if (!employeeId || !password) return;
+
+    setLocalError(null);
+    setIsSubmitting(true);
+    try {
+      await onLogin(employeeId, password);
+    } catch (err: any) {
+      setLocalError(err.message || 'Error al iniciar sesión');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
+    // Auto-fill employee ID based on role for convenience
+    const defaults: Record<UserRole, string> = {
+      warehouse: 'ALM001',
+      sales: 'VEN001',
+      executive: 'EJE001',
+    };
+    setEmployeeId(defaults[role]);
+    setLocalError(null);
   };
 
   return (
@@ -48,6 +69,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               Sistema de Gestión de Inventario
             </p>
           </div>
+
+          {/* Error Message */}
+          {displayError && (
+            <div className="mb-4 p-3 rounded-[12px] bg-red-50 border border-red-200 text-red-700 text-sm text-center">
+              {displayError}
+            </div>
+          )}
 
           {/* Role Selection */}
           {!selectedRole ? (
@@ -189,15 +217,22 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               {/* Login Button */}
               <button
                 type="submit"
-                disabled={!employeeId || !password}
-                className="w-full py-4 rounded-[16px] bg-gradient-to-br from-[#1B4332] to-[#0071E3] text-white hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                disabled={!employeeId || !password || isSubmitting}
+                className="w-full py-4 rounded-[16px] bg-gradient-to-br from-[#1B4332] to-[#0071E3] text-white hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
                 style={{
                   boxShadow: '0 8px 24px rgba(27, 67, 50, 0.3)',
                   fontSize: '17px',
                   fontWeight: '600',
                 }}
               >
-                Iniciar Sesión
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    Verificando...
+                  </>
+                ) : (
+                  'Iniciar Sesión'
+                )}
               </button>
             </div>
           </form>

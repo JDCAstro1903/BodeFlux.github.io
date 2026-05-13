@@ -1,9 +1,11 @@
 import { Search, ShoppingCart, Package, TrendingUp, CheckCircle, AlertCircle, Plus, Minus, Truck, Send } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ShoppingCartModal } from './ShoppingCart';
+import { productApi, salesApi, type ProductAPI } from '../services/api';
 
 interface Product {
   id: string;
+  numericId: number;
   name: string;
   category: string;
   stock: number;
@@ -13,15 +15,34 @@ interface Product {
   image: string;
 }
 
+function mapProduct(api: ProductAPI): Product {
+  return {
+    id: String(api.id),
+    numericId: api.id,
+    name: api.name,
+    category: api.category,
+    stock: api.stock,
+    price: api.price,
+    unit: api.unit,
+    status: api.status as Product['status'],
+    image: api.image_emoji,
+  };
+}
+
 export function SalesView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<{ [key: string]: number }>({});
   const [showSupplierRequest, setShowSupplierRequest] = useState(false);
   const [supplierRequests, setSupplierRequests] = useState<{ [key: string]: number }>({});
   const [showCart, setShowCart] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
 
-  // TODO: replace with backend-fetched product catalog.
-  const products: Product[] = [];
+  // Fetch products from API
+  useEffect(() => {
+    productApi.list().then((data) => {
+      setProducts(data.map(mapProduct));
+    }).catch(console.error);
+  }, []);
 
   const addToCart = (productId: string) => {
     setCart(prev => ({
@@ -91,10 +112,27 @@ export function SalesView() {
     setCart(newCart);
   };
 
-  const handleCheckout = () => {
-    alert('Comprobante de venta generado correctamente\n\nTotal: $' + cartTotal.toFixed(2));
-    setCart({});
-    setShowCart(false);
+  const handleCheckout = async () => {
+    try {
+      const saleItems = Object.entries(cart).map(([productId, quantity]) => {
+        const product = products.find(p => p.id === productId)!;
+        return {
+          product_id: product.numericId,
+          product_name: product.name,
+          quantity,
+          unit_price: product.price,
+        };
+      });
+      const result = await salesApi.create({ items: saleItems });
+      alert(`✅ Venta registrada\n\nTotal: $${result.total.toFixed(2)}`);
+      setCart({});
+      setShowCart(false);
+      // Refresh products to get updated stock
+      const updated = await productApi.list();
+      setProducts(updated.map(mapProduct));
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
   };
 
   const filteredProducts = products.filter(product =>

@@ -1,18 +1,20 @@
 import { TrendingUp, DollarSign, Clock, BarChart3, Download, FileText, PieChart as PieChartIcon, Activity } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
+import { useState, useEffect } from 'react';
+import { dashboardApi, type KPIsAPI } from '../services/api';
+
+const COLORS = ['#1B4332', '#0071E3', '#10B981', '#F59E0B', '#EF4444'];
 
 export function ExecutiveDashboard() {
-  // TODO: replace with backend-fetched analytics.
-  const stockData: { month: string; stock: number }[] = [];
-  const categoryData: { category: string; value: number }[] = [];
-  const pieData: { name: string; value: number; color: string }[] = [];
-  const revenueData: { month: string; revenue: number; expenses: number }[] = [];
-  const movementData: { day: string; entradas: number; salidas: number }[] = [];
+  const [stockData, setStockData] = useState<{ month: string; stock: number }[]>([]);
+  const [categoryData, setCategoryData] = useState<{ category: string; value: number }[]>([]);
+  const [pieData, setPieData] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [revenueData, setRevenueData] = useState<{ month: string; revenue: number; expenses: number }[]>([]);
+  const [movementData, setMovementData] = useState<{ day: string; entradas: number; salidas: number }[]>([]);
+  const [topProducts, setTopProducts] = useState<{ name: string; sales: number; revenue: number }[]>([]);
+  const [topProviders, setTopProviders] = useState<{ name: string; rating: number; orders: number; onTime: number }[]>([]);
 
-  const topProducts: { name: string; sales: number; revenue: number }[] = [];
-  const topProviders: { name: string; rating: number; orders: number; onTime: number }[] = [];
-
-  const kpis = {
+  const [kpis, setKpis] = useState({
     inventoryValue: '—',
     inventoryDelta: '—',
     avoidedWaste: '—',
@@ -30,7 +32,59 @@ export function ExecutiveDashboard() {
     responseDelta: '—',
     stockAccuracy: '—',
     stockDelta: '—',
-  };
+  });
+
+  // Fetch all dashboard data from API
+  useEffect(() => {
+    // KPIs
+    dashboardApi.kpis().then((data) => {
+      setKpis({
+        inventoryValue: data.inventory_value,
+        inventoryDelta: data.inventory_delta,
+        avoidedWaste: data.avoided_waste,
+        avoidedWasteDelta: data.avoided_waste_delta,
+        avgResponseTime: data.avg_response_time,
+        avgResponseDelta: data.avg_response_delta,
+        activeProducts: String(data.active_products),
+        movementsToday: String(data.movements_today),
+        activeUsers: String(data.active_users),
+        rotationRate: data.rotation_rate,
+        rotationDelta: data.rotation_delta,
+        fulfillment: data.fulfillment,
+        fulfillmentDelta: data.fulfillment_delta,
+        responseTime: data.response_time,
+        responseDelta: data.response_delta,
+        stockAccuracy: data.stock_accuracy,
+        stockDelta: data.stock_delta,
+      });
+    }).catch(console.error);
+
+    // Charts
+    dashboardApi.stockChart().then((data) => {
+      setStockData(data.map((d) => ({ month: d.label, stock: d.value })));
+    }).catch(console.error);
+
+    dashboardApi.categoriesChart().then((data) => {
+      setCategoryData(data.map((d) => ({ category: d.label, value: d.value })));
+      setPieData(data.map((d, i) => ({ name: d.label, value: d.value, color: COLORS[i % COLORS.length] })));
+    }).catch(console.error);
+
+    dashboardApi.revenueChart().then((data) => {
+      setRevenueData(data.map((d) => ({ month: d.label, revenue: d.value, expenses: d.value2 || 0 })));
+    }).catch(console.error);
+
+    dashboardApi.movementsChart().then((data) => {
+      setMovementData(data.map((d) => ({ day: d.label, entradas: d.value, salidas: d.value2 || 0 })));
+    }).catch(console.error);
+
+    dashboardApi.topProducts().then((data) => {
+      setTopProducts(data);
+    }).catch(console.error);
+
+    dashboardApi.topProviders().then((data) => {
+      setTopProviders(data.map((p) => ({ name: p.name, rating: p.rating, orders: p.orders, onTime: p.on_time })));
+    }).catch(console.error);
+  }, []);
 
   const handleGenerateReport = (reportType: string) => {
     alert(`Generando reporte: ${reportType}\n\nEl reporte se descargará en formato PDF.`);

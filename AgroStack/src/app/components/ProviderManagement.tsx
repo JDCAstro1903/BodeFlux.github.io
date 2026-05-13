@@ -1,8 +1,10 @@
 import { Building2, Phone, Mail, MapPin, Plus, Edit, Trash2, Star } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { providerApi, type ProviderAPI } from '../services/api';
 
 interface Provider {
   id: string;
+  numericId: number;
   name: string;
   contact: string;
   email: string;
@@ -13,9 +15,23 @@ interface Provider {
   status: 'active' | 'inactive';
 }
 
+function mapProvider(api: ProviderAPI): Provider {
+  return {
+    id: `PROV-${String(api.id).padStart(3, '0')}`,
+    numericId: api.id,
+    name: api.name,
+    contact: api.contact,
+    email: api.email,
+    phone: api.phone,
+    address: api.address,
+    category: api.category,
+    rating: api.rating,
+    status: api.status as 'active' | 'inactive',
+  };
+}
+
 export function ProviderManagement() {
   const [showAddForm, setShowAddForm] = useState(false);
-  // TODO: replace with backend-fetched providers list.
   const [providers, setProviders] = useState<Provider[]>([]);
 
   const [formData, setFormData] = useState({
@@ -27,17 +43,23 @@ export function ProviderManagement() {
     category: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch providers from API
+  useEffect(() => {
+    providerApi.list().then((data) => {
+      setProviders(data.map(mapProvider));
+    }).catch(console.error);
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newProvider: Provider = {
-      id: `PROV-${String(providers.length + 1).padStart(3, '0')}`,
-      ...formData,
-      rating: 0,
-      status: 'active',
-    };
-    setProviders([...providers, newProvider]);
-    setFormData({ name: '', contact: '', email: '', phone: '', address: '', category: '' });
-    setShowAddForm(false);
+    try {
+      const created = await providerApi.create(formData);
+      setProviders((prev) => [...prev, mapProvider(created)]);
+      setFormData({ name: '', contact: '', email: '', phone: '', address: '', category: '' });
+      setShowAddForm(false);
+    } catch (err) {
+      console.error('Error creating provider:', err);
+    }
   };
 
   return (

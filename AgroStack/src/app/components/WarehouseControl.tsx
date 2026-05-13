@@ -5,9 +5,10 @@ import { ScanOutput, OutputData } from './ScanOutput';
 import { RegisterWaste, WasteData } from './RegisterWaste';
 import { useState, useEffect } from 'react';
 import { useInventory } from '../contexts/InventoryContext';
+import { wasteApi } from '../services/api';
 
 export function WarehouseControl() {
-  const { items, addItem, removeItem } = useInventory();
+  const { items, addItem, removeItem, locations, refreshInventory } = useInventory();
   const [showRegisterEntry, setShowRegisterEntry] = useState(false);
   const [showScanOutput, setShowScanOutput] = useState(false);
   const [showRegisterWaste, setShowRegisterWaste] = useState(false);
@@ -28,47 +29,64 @@ export function WarehouseControl() {
       inventoryId: i.id,
     }));
 
-  // Occupied locations derived from active items
+  // Occupied locations derived from backend locations API
   const occupiedLocations = new Set(
-    items.filter((i) => i.status === 'active' && i.location).map((i) => {
-      const match = i.location.match(/([A-C]-[1-3])/);
-      return match ? match[1] : null;
-    }).filter(Boolean) as string[]
+    locations
+      .filter((l) => l.is_occupied)
+      .map((l) => l.location)
   );
 
-  const handleEntrySubmit = (entry: EntryData) => {
-    addItem({
-      productName: entry.productName,
-      category: entry.category,
-      quantity: entry.quantity,
-      unit: entry.unit,
-      lotNumber: entry.lotNumber,
-      expiryDate: entry.expiryDate,
-      location: entry.location,
-      provider: entry.provider,
-      receiptDate: entry.receiptDate,
-    });
-    setLastEntry({ product: entry.productName, quantity: `${entry.quantity} ${entry.unit}`, type: 'entry' });
-    setShowSuccessToast(true);
+  const handleEntrySubmit = async (entry: EntryData) => {
+    try {
+      await addItem({
+        productName: entry.productName,
+        category: entry.category,
+        quantity: entry.quantity,
+        unit: entry.unit,
+        lotNumber: entry.lotNumber,
+        expiryDate: entry.expiryDate,
+        location: entry.location,
+        provider: entry.provider,
+        receiptDate: entry.receiptDate,
+      });
+      setLastEntry({ product: entry.productName, quantity: `${entry.quantity} ${entry.unit}`, type: 'entry' });
+      setShowSuccessToast(true);
+    } catch (err) {
+      console.error('Error registering entry:', err);
+    }
   };
 
-  const handleOutputSubmit = (output: OutputData) => {
-    // Find matching active item by lot number and remove it
-    const match = items.find(
-      (i) => i.status === 'active' && (i.lotNumber === output.lotNumber || i.productName === output.productName)
-    );
-    if (match) removeItem(match.id, 'output');
-    setLastEntry({ product: output.productName, quantity: `${output.quantity} ${output.unit}`, type: 'output' });
-    setShowSuccessToast(true);
+  const handleOutputSubmit = async (output: OutputData) => {
+    try {
+      const match = items.find(
+        (i) => i.status === 'active' && (i.lotNumber === output.lotNumber || i.productName === output.productName)
+      );
+      if (match) await removeItem(match.id, 'output');
+      setLastEntry({ product: output.productName, quantity: `${output.quantity} ${output.unit}`, type: 'output' });
+      setShowSuccessToast(true);
+    } catch (err) {
+      console.error('Error registering output:', err);
+    }
   };
 
-  const handleWasteSubmit = (waste: WasteData) => {
-    const match = items.find(
-      (i) => i.status === 'active' && (i.lotNumber === waste.lotNumber || i.productName === waste.productName)
-    );
-    if (match) removeItem(match.id, 'waste');
-    setLastEntry({ product: waste.productName, quantity: `${waste.quantity} ${waste.unit}`, type: 'waste' });
-    setShowSuccessToast(true);
+  const handleWasteSubmit = async (waste: WasteData) => {
+    try {
+      await wasteApi.create({
+        lot_number: waste.lotNumber,
+        product_name: waste.productName,
+        quantity: waste.quantity,
+        unit: waste.unit,
+        reason: waste.reason || 'otro',
+        has_evidence: waste.hasEvidence || false,
+        notes: waste.notes || '',
+        waste_date: waste.wasteDate || new Date().toISOString().split('T')[0],
+      });
+      await refreshInventory();
+      setLastEntry({ product: waste.productName, quantity: `${waste.quantity} ${waste.unit}`, type: 'waste' });
+      setShowSuccessToast(true);
+    } catch (err) {
+      console.error('Error registering waste:', err);
+    }
   };
 
   useEffect(() => {

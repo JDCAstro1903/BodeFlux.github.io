@@ -1,7 +1,18 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import {
+  inventoryApi,
+  wasteApi,
+  type InventoryItemAPI,
+  type InventoryItemWithAlertAPI,
+  type InventoryCreatePayload,
+  type OutputPayload,
+  type WasteCreatePayload,
+  type LocationStatusAPI,
+} from '../services/api';
 
 export interface InventoryItem {
   id: string;
+  numericId: number;
   productName: string;
   category: string;
   quantity: number;
@@ -19,19 +30,30 @@ export interface InventoryItemWithAlert extends InventoryItem {
   alertLevel: 'critical' | 'warning' | 'healthy' | 'expired';
 }
 
-function getDaysLeft(expiryDate: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expiry = new Date(expiryDate);
-  expiry.setHours(0, 0, 0, 0);
-  return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+/** Map an API item to our frontend format */
+function mapItem(api: InventoryItemAPI): InventoryItem {
+  return {
+    id: `INV-${api.id}`,
+    numericId: api.id,
+    productName: api.product_name,
+    category: api.category,
+    quantity: api.quantity,
+    unit: api.unit,
+    lotNumber: api.lot_number,
+    expiryDate: api.expiry_date,
+    location: api.location,
+    provider: api.provider || '',
+    receiptDate: api.receipt_date,
+    status: api.status as InventoryItem['status'],
+  };
 }
 
-function getAlertLevel(daysLeft: number): InventoryItemWithAlert['alertLevel'] {
-  if (daysLeft < 0) return 'expired';
-  if (daysLeft <= 15) return 'critical';
-  if (daysLeft <= 30) return 'warning';
-  return 'healthy';
+function mapAlertItem(api: InventoryItemWithAlertAPI): InventoryItemWithAlert {
+  return {
+    ...mapItem(api),
+    daysLeft: api.days_left,
+    alertLevel: api.alert_level as InventoryItemWithAlert['alertLevel'],
+  };
 }
 
 interface InventoryContextType {
@@ -41,43 +63,87 @@ interface InventoryContextType {
   warningItems: InventoryItemWithAlert[];
   healthyItems: InventoryItemWithAlert[];
   expiredItems: InventoryItemWithAlert[];
-  addItem: (item: Omit<InventoryItem, 'id' | 'status'>) => void;
-  removeItem: (id: string, reason: 'output' | 'waste') => void;
+  locations: LocationStatusAPI[];
+  addItem: (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'>) => Promise<void>;
+  removeItem: (id: string, reason: 'output' | 'waste') => Promise<void>;
+  registerWaste: (data: WasteCreatePayload) => Promise<void>;
   prioritizeItem: (id: string) => void;
   prioritizedId: string | null;
+  refreshInventory: () => Promise<void>;
+  isLoading: boolean;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [itemsWithAlerts, setItemsWithAlerts] = useState<InventoryItemWithAlert[]>([]);
+  const [locations, setLocations] = useState<LocationStatusAPI[]>([]);
   const [prioritizedId, setPrioritizedId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const activeItems = items.filter((i) => i.status === 'active');
+  const refreshInventory = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [rawItems, alertItems, locs] = await Promise.all([
+        inventoryApi.list('active'),
+        inventoryApi.alerts(),
+        inventoryApi.locations(),
+      ]);
+      setItems(rawItems.map(mapItem));
+      setItemsWithAlerts(alertItems.map(mapAlertItem));
+      setLocations(locs);
+    } catch (err) {
+      console.error('Error fetching inventory:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-  const itemsWithAlerts: InventoryItemWithAlert[] = activeItems.map((item) => {
-    const daysLeft = getDaysLeft(item.expiryDate);
-    return { ...item, daysLeft, alertLevel: getAlertLevel(daysLeft) };
-  });
+  // Initial load
+  useEffect(() => {
+    refreshInventory();
+  }, [refreshInventory]);
 
   const criticalItems = itemsWithAlerts.filter((i) => i.alertLevel === 'critical');
   const warningItems = itemsWithAlerts.filter((i) => i.alertLevel === 'warning');
   const healthyItems = itemsWithAlerts.filter((i) => i.alertLevel === 'healthy');
   const expiredItems = itemsWithAlerts.filter((i) => i.alertLevel === 'expired');
 
-  const addItem = (item: Omit<InventoryItem, 'id' | 'status'>) => {
-    const newItem: InventoryItem = {
-      ...item,
-      id: `INV-${Date.now()}`,
-      status: 'active',
+  const addItem = async (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'>) => {
+    const payload: InventoryCreatePayload = {
+      product_name: item.productName,
+      category: item.category,
+      quantity: item.quantity,
+      unit: item.unit,
+      lot_number: item.lotNumber,
+      expiry_date: item.expiryDate,
+      location: item.location,
+      provider: item.provider,
+      receipt_date: item.receiptDate,
     };
-    setItems((prev) => [newItem, ...prev]);
+    await inventoryApi.create(payload);
+    await refreshInventory();
   };
 
-  const removeItem = (id: string, reason: 'output' | 'waste') => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: reason } : item))
-    );
+  const removeItem = async (id: string, reason: 'output' | 'waste') => {
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+
+    if (reason === 'output') {
+      const outputPayload: OutputPayload = {
+        quantity: item.quantity,
+        destination: 'Salida general',
+      };
+      await inventoryApi.output(item.numericId, outputPayload);
+    }
+    // For waste, use registerWaste separately
+    await refreshInventory();
+  };
+
+  const registerWaste = async (data: WasteCreatePayload) => {
+    await wasteApi.create(data);
+    await refreshInventory();
   };
 
   const prioritizeItem = (id: string) => {
@@ -93,10 +159,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         warningItems,
         healthyItems,
         expiredItems,
+        locations,
         addItem,
         removeItem,
+        registerWaste,
         prioritizeItem,
         prioritizedId,
+        refreshInventory,
+        isLoading,
       }}
     >
       {children}
