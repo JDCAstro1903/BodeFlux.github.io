@@ -1,6 +1,0 @@
-{
-  "buildCommand": "npm --prefix bodeflux run build",
-  "outputDirectory": "bodeflux/dist",
-  "installCommand": "npm --prefix bodeflux install",
-  "framework": "vite"
-}
