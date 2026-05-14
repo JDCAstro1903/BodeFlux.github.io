@@ -3,7 +3,7 @@
  * Centralized service layer for all backend communication.
  */
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000/api';
 
 function getToken(): string | null {
   return localStorage.getItem('agrostack_token');
@@ -211,6 +211,17 @@ export interface ProductAPI {
   created_at: string | null;
 }
 
+export interface ProductCreatePayload {
+  name: string;
+  category: string;
+  stock?: number;
+  price: number;
+  unit: string;
+  image_emoji?: string;
+  provider_id?: number;
+  provider_name?: string;
+}
+
 export const productApi = {
   list: (category?: string, search?: string) => {
     const params = new URLSearchParams();
@@ -220,6 +231,11 @@ export const productApi = {
     return request<ProductAPI[]>(`/products/${qs ? `?${qs}` : ''}`);
   },
   get: (id: number) => request<ProductAPI>(`/products/${id}`),
+  create: (payload: ProductCreatePayload) =>
+    request<ProductAPI>('/products/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   update: (id: number, payload: Partial<ProductAPI>) =>
     request<ProductAPI>(`/products/${id}`, {
       method: 'PUT',
@@ -244,6 +260,7 @@ export interface SaleCreatePayload {
 
 export interface SaleResponseAPI {
   id: number;
+  customer_name?: string | null;
   subtotal: number;
   tax: number;
   total: number;

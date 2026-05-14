@@ -16,7 +16,7 @@ interface CartProps {
   products: Product[];
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string) => void;
-  onCheckout: () => void;
+  onCheckout: (customerName: string) => void;
 }
 
 export function ShoppingCartModal({ isOpen, onClose, cart, products, onUpdateQuantity, onRemoveItem, onCheckout }: CartProps) {
@@ -37,11 +37,7 @@ export function ShoppingCartModal({ isOpen, onClose, cart, products, onUpdateQua
   const totalItems = cartItems.reduce((sum, item) => sum + item!.quantity, 0);
 
   const handleCheckout = () => {
-    if (!customerName.trim()) {
-      alert('Por favor ingresa el nombre del cliente');
-      return;
-    }
-    onCheckout();
+    onCheckout(customerName.trim());
     setShowCheckout(false);
     setCustomerName('');
   };

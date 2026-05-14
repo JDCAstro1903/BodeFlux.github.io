@@ -1,7 +1,9 @@
-import { Search, ShoppingCart, Package, TrendingUp, CheckCircle, AlertCircle, Plus, Minus, Truck, Send, Trash2 } from 'lucide-react';
+import { Search, ShoppingCart, Package, TrendingUp, CheckCircle, AlertCircle, Plus, Minus, Truck, Send, Trash2, History, Receipt, ChevronDown, ChevronUp, RefreshCw, Download } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ShoppingCartModal } from './ShoppingCart';
-import { productApi, salesApi, providerOrderApi, type ProductAPI } from '../services/api';
+import { productApi, salesApi, providerOrderApi, type ProductAPI, type SaleResponseAPI } from '../services/api';
+import { generateSaleTicket } from '../utils/generateSaleTicket';
+import { SaleTicketPreview } from './SaleTicketPreview';
 
 interface Product {
   id: string;
@@ -34,6 +36,7 @@ function mapProduct(api: ProductAPI): Product {
 }
 
 export function SalesView() {
+  const [activeTab, setActiveTab] = useState<'catalog' | 'history'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<{ [key: string]: number }>({});
   const [showSupplierRequest, setShowSupplierRequest] = useState(false);
@@ -41,6 +44,10 @@ export function SalesView() {
   const [showCart, setShowCart] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [sendingRequest, setSendingRequest] = useState(false);
+  const [sales, setSales] = useState<SaleResponseAPI[]>([]);
+  const [loadingSales, setLoadingSales] = useState(false);
+  const [expandedSale, setExpandedSale] = useState<number | null>(null);
+  const [previewSale, setPreviewSale] = useState<SaleResponseAPI | null>(null);
 
   // Fetch products from API
   useEffect(() => {
@@ -48,6 +55,15 @@ export function SalesView() {
       setProducts(data.map(mapProduct));
     }).catch(console.error);
   }, []);
+
+  const fetchSales = () => {
+    setLoadingSales(true);
+    salesApi.list().then(setSales).catch(console.error).finally(() => setLoadingSales(false));
+  };
+
+  useEffect(() => {
+    if (activeTab === 'history') fetchSales();
+  }, [activeTab]);
 
   const addToCart = (productId: string) => {
     setCart(prev => ({
@@ -151,7 +167,7 @@ export function SalesView() {
     setCart(newCart);
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (customerName: string) => {
     try {
       const saleItems = Object.entries(cart).map(([productId, quantity]) => {
         const product = products.find(p => p.id === productId)!;
@@ -162,13 +178,14 @@ export function SalesView() {
           unit_price: product.price,
         };
       });
-      const result = await salesApi.create({ items: saleItems });
-      alert(`✅ Venta registrada\n\nTotal: $${result.total.toFixed(2)}`);
+      const result = await salesApi.create({ customer_name: customerName || undefined, items: saleItems });
+      setPreviewSale(result);
       setCart({});
       setShowCart(false);
-      // Refresh products to get updated stock
+      // Refresh products and sales history
       const updated = await productApi.list();
       setProducts(updated.map(mapProduct));
+      salesApi.list().then(setSales).catch(console.error);
     } catch (err: any) {
       alert(`Error: ${err.message}`);
     }
@@ -179,20 +196,52 @@ export function SalesView() {
     product.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const totalSalesRevenue = sales.reduce((sum, s) => sum + s.total, 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '600', color: '#1B4332' }}>Catálogo de Productos</h1>
+          <h1 style={{ fontSize: '28px', fontWeight: '600', color: '#1B4332' }}>
+            {activeTab === 'catalog' ? 'Catálogo de Productos' : 'Historial de Ventas'}
+          </h1>
           <p style={{ fontSize: '15px', color: '#6B7280', fontWeight: '400', marginTop: '4px' }}>
-            Consulta disponibilidad y crea pedidos
+            {activeTab === 'catalog' ? 'Consulta disponibilidad y crea pedidos' : 'Registro de todas las ventas realizadas'}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Supplier Request Button */}
-          <button
+          {/* Tab Switcher */}
+          <div className="flex rounded-[16px] bg-white/75 backdrop-blur-xl border border-white/50 p-1" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+            <button
+              onClick={() => setActiveTab('catalog')}
+              className={`px-4 py-2 rounded-[12px] transition-all flex items-center gap-2 ${
+                activeTab === 'catalog'
+                  ? 'bg-gradient-to-br from-[#0071E3] to-[#005BB5] text-white shadow-md'
+                  : 'text-[#6B7280] hover:text-[#1B4332]'
+              }`}
+              style={{ fontSize: '13px', fontWeight: '600' }}
+            >
+              <ShoppingCart size={15} />
+              <span className="hidden sm:inline">Catálogo</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-4 py-2 rounded-[12px] transition-all flex items-center gap-2 ${
+                activeTab === 'history'
+                  ? 'bg-gradient-to-br from-[#0071E3] to-[#005BB5] text-white shadow-md'
+                  : 'text-[#6B7280] hover:text-[#1B4332]'
+              }`}
+              style={{ fontSize: '13px', fontWeight: '600' }}
+            >
+              <History size={15} />
+              <span className="hidden sm:inline">Historial</span>
+            </button>
+          </div>
+
+          {/* Supplier Request Button - catalog only */}
+          {activeTab === 'catalog' && <button
             onClick={() => setShowSupplierRequest(!showSupplierRequest)}
             className="px-4 py-3 rounded-[16px] bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] text-white hover:shadow-lg transition-all flex items-center gap-2 relative"
             style={{ fontSize: '13px', fontWeight: '600' }}
@@ -204,10 +253,10 @@ export function SalesView() {
                 <span style={{ fontSize: '10px', fontWeight: '700' }}>{supplierRequestItems}</span>
               </div>
             )}
-          </button>
+          </button>}
 
-          {/* Cart Summary - Clickable */}
-          <button
+          {/* Cart Summary - Clickable - catalog only */}
+          {activeTab === 'catalog' && <button
             onClick={() => setShowCart(true)}
             className="rounded-[20px] bg-gradient-to-br from-[#0071E3] to-[#005BB5] px-6 py-4 text-white relative hover:shadow-2xl transition-all"
             style={{ boxShadow: '0 8px 24px rgba(0, 113, 227, 0.3)' }}
@@ -228,9 +277,24 @@ export function SalesView() {
                 <span style={{ fontSize: '12px', fontWeight: '700' }}>{cartItems}</span>
               </div>
             )}
-          </button>
+          </button>}
+
+          {/* Refresh button - history only */}
+          {activeTab === 'history' && (
+            <button
+              onClick={fetchSales}
+              disabled={loadingSales}
+              className="w-10 h-10 rounded-full bg-white/75 backdrop-blur-xl border border-white/50 flex items-center justify-center hover:bg-white transition-all disabled:opacity-50"
+              style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}
+            >
+              <RefreshCw size={16} className={`text-[#6B7280] ${loadingSales ? 'animate-spin' : ''}`} />
+            </button>
+          )}
         </div>
       </div>
+
+      {/* ==================== CATALOG VIEW ==================== */}
+      {activeTab === 'catalog' && <>
 
       {/* Search Bar */}
       <div className="relative">
@@ -585,6 +649,166 @@ export function SalesView() {
           )}
         </button>
       )}
+      </> /* end CATALOG VIEW */}
+
+      {/* ==================== HISTORY VIEW ==================== */}
+      {activeTab === 'history' && (
+        <div className="space-y-4">
+          {/* Summary stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-[20px] bg-white/75 backdrop-blur-xl p-5" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#0071E3]/10 flex items-center justify-center">
+                  <Receipt size={20} className="text-[#0071E3]" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#1B4332' }}>{sales.length}</div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>Ventas Totales</div>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-[20px] bg-white/75 backdrop-blur-xl p-5" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#10B981]/10 flex items-center justify-center">
+                  <TrendingUp size={20} className="text-[#10B981]" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#1B4332' }}>${totalSalesRevenue.toFixed(2)}</div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>Ingresos Totales</div>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-[20px] bg-white/75 backdrop-blur-xl p-5" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#F59E0B]/10 flex items-center justify-center">
+                  <Package size={20} className="text-[#F59E0B]" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#1B4332' }}>
+                    {sales.reduce((sum, s) => sum + s.items.reduce((a, i) => a + i.quantity, 0), 0)}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>Unidades Vendidas</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sales list */}
+          {loadingSales ? (
+            <div className="flex items-center justify-center py-16">
+              <RefreshCw size={28} className="animate-spin text-[#0071E3]" />
+            </div>
+          ) : sales.length === 0 ? (
+            <div
+              className="rounded-[24px] bg-white/75 backdrop-blur-xl p-12 text-center"
+              style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}
+            >
+              <Receipt size={48} className="mx-auto mb-4 text-[#D1D5DB]" />
+              <p style={{ fontSize: '16px', fontWeight: '600', color: '#6B7280' }}>Sin ventas registradas</p>
+              <p style={{ fontSize: '13px', color: '#9CA3AF', marginTop: '4px' }}>Las ventas aparecerán aquí una vez que se realice un pedido</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sales.map((sale) => {
+                const isExpanded = expandedSale === sale.id;
+                const date = sale.created_at ? new Date(sale.created_at) : null;
+                return (
+                  <div
+                    key={sale.id}
+                    className="rounded-[20px] bg-white/75 backdrop-blur-xl border border-white/50 overflow-hidden"
+                    style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}
+                  >
+                    {/* Sale header row */}
+                    <button
+                      onClick={() => setExpandedSale(isExpanded ? null : sale.id)}
+                      className="w-full px-6 py-4 flex items-center justify-between gap-4 hover:bg-white/50 transition-all text-left"
+                    >
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-[#0071E3]/10 flex items-center justify-center flex-shrink-0">
+                          <Receipt size={18} className="text-[#0071E3]" />
+                        </div>
+                        <div className="min-w-0">
+                          <div style={{ fontSize: '15px', fontWeight: '600', color: '#1B4332' }}>
+                            Venta #{sale.id}
+                            {sale.customer_name && (
+                              <span style={{ fontSize: '13px', fontWeight: '400', color: '#6B7280' }}> · {sale.customer_name}</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>
+                            {date ? date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                            <span className="mx-2">·</span>
+                            {sale.items.length} {sale.items.length === 1 ? 'producto' : 'productos'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        <div className="text-right">
+                          <div style={{ fontSize: '18px', fontWeight: '700', color: '#1B4332' }}>${sale.total.toFixed(2)}</div>
+                          <div style={{ fontSize: '11px', color: '#9CA3AF' }}>IVA incl.</div>
+                        </div>
+                        <span
+                          className="px-2 py-1 rounded-full bg-[#10B981]/10 flex items-center gap-1"
+                          style={{ fontSize: '11px', fontWeight: '600', color: '#10B981' }}
+                        >
+                          <CheckCircle size={11} />
+                          {sale.status}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setPreviewSale(sale); }}
+                          className="w-8 h-8 rounded-full bg-[#0071E3]/10 hover:bg-[#0071E3]/20 flex items-center justify-center transition-all flex-shrink-0"
+                          title="Ver ticket"
+                        >
+                          <Download size={14} className="text-[#0071E3]" />
+                        </button>
+                        {isExpanded ? <ChevronUp size={16} className="text-[#6B7280]" /> : <ChevronDown size={16} className="text-[#6B7280]" />}
+                      </div>
+                    </button>
+
+                    {/* Expanded items */}
+                    {isExpanded && (
+                      <div className="border-t border-gray-100 px-6 py-4 space-y-2">
+                        <div className="grid grid-cols-4 gap-2 mb-2" style={{ fontSize: '11px', fontWeight: '600', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <span className="col-span-2">Producto</span>
+                          <span className="text-center">Cant.</span>
+                          <span className="text-right">Subtotal</span>
+                        </div>
+                        {sale.items.map((item) => (
+                          <div key={item.id} className="grid grid-cols-4 gap-2 items-center py-2 border-b border-gray-50 last:border-0">
+                            <div className="col-span-2" style={{ fontSize: '14px', fontWeight: '500', color: '#1B4332' }}>
+                              {item.product_name}
+                              <div style={{ fontSize: '12px', color: '#9CA3AF' }}>${item.unit_price.toFixed(2)} c/u</div>
+                            </div>
+                            <div className="text-center" style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                              {item.quantity}
+                            </div>
+                            <div className="text-right" style={{ fontSize: '14px', fontWeight: '700', color: '#1B4332' }}>
+                              ${item.total_price.toFixed(2)}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="pt-3 flex flex-col items-end gap-1">
+                          <div className="flex justify-between w-48" style={{ fontSize: '13px', color: '#6B7280' }}>
+                            <span>Subtotal</span><span>${sale.subtotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between w-48" style={{ fontSize: '13px', color: '#6B7280' }}>
+                            <span>IVA (16%)</span><span>${sale.tax.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between w-48 border-t border-gray-200 pt-1" style={{ fontSize: '15px', fontWeight: '700', color: '#1B4332' }}>
+                            <span>Total</span><span>${sale.total.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sale Ticket Preview Modal */}
+      <SaleTicketPreview sale={previewSale} onClose={() => setPreviewSale(null)} />
     </div>
   );
 }

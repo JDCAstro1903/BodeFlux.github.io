@@ -1,4 +1,4 @@
-import { X, Package, Calendar, MapPin, Building2, Hash, Weight, Search, Star } from 'lucide-react';
+import { X, Package, Calendar, MapPin, Building2, Hash, Weight, Search, Star, DollarSign } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { providerApi, type ProviderAPI, productApi, type ProductAPI } from '../services/api';
@@ -21,6 +21,7 @@ export interface EntryData {
   provider: string;
   providerId?: number;
   receiptDate: string;
+  price: number;
 }
 
 export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps) {
@@ -47,7 +48,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
     const stamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
     const idPart = String(product.id).padStart(3, '0');
     const lotNumber = `LOT-${idPart}-${stamp}`;
-    setFormData({ ...formData, productId: product.id, productName: product.name, category: product.category, unit: product.unit, lotNumber });
+    setFormData({ ...formData, productId: product.id, productName: product.name, category: product.category, unit: product.unit, lotNumber, price: product.price });
     setProductSearch(product.name);
     setShowProductDropdown(false);
   };
@@ -64,6 +65,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
     provider: '',
     providerId: undefined,
     receiptDate: new Date().toISOString().split('T')[0],
+    price: 0,
   });
 
   // Track occupied locations
@@ -95,6 +97,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
       provider: '',
       providerId: undefined,
       receiptDate: new Date().toISOString().split('T')[0],
+      price: 0,
     });
     onClose();
   };
@@ -245,6 +248,28 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                   placeholder="0"
                   style={{ fontSize: '14px' }}
                 />
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="flex items-center gap-2 mb-2 text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '13px', fontWeight: '500' }}>
+                  <DollarSign size={16} />
+                  Precio Unitario
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" style={{ fontSize: '14px', fontWeight: '600' }}>$</span>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.price || ''}
+                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    className="w-full pl-7 pr-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] dark:text-white dark:placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C] transition-all"
+                    placeholder="0.00"
+                    style={{ fontSize: '14px' }}
+                  />
+                </div>
               </div>
 
               {/* Unit */}

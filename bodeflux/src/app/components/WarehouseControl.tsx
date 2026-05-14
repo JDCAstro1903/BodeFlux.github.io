@@ -5,7 +5,7 @@ import { ScanOutput, OutputData } from './ScanOutput';
 import { RegisterWaste, WasteData } from './RegisterWaste';
 import { useState, useEffect } from 'react';
 import { useInventory } from '../contexts/InventoryContext';
-import { wasteApi, inventoryApi } from '../services/api';
+import { wasteApi, inventoryApi, productApi } from '../services/api';
 
 export function WarehouseControl() {
   const { items, addItem, removeItem, locations, refreshInventory } = useInventory();
@@ -38,8 +38,25 @@ export function WarehouseControl() {
 
   const handleEntrySubmit = async (entry: EntryData) => {
     try {
+      let productId = entry.productId;
+
+      if (!productId) {
+        // New product — create it in the catalog first
+        const created = await productApi.create({
+          name: entry.productName,
+          category: entry.category,
+          stock: 0,
+          price: entry.price,
+          unit: entry.unit,
+        });
+        productId = created.id;
+      } else if (entry.price > 0) {
+        // Update price on existing product
+        await productApi.update(productId, { price: entry.price });
+      }
+
       await addItem({
-        productId: entry.productId,
+        productId: productId,
         productName: entry.productName,
         category: entry.category,
         quantity: entry.quantity,
