@@ -3,8 +3,11 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
+from sqlalchemy import func as sqlfunc
+
 from ..database import get_db
 from ..models.inventory import InventoryItem, InventoryMovement
+from ..models.product import Product as ProductModel
 from ..models.user import User
 from ..schemas.inventory import (
     InventoryItemCreate,
@@ -47,6 +50,13 @@ def get_locations(db: Session = Depends(get_db)):
     return get_occupied_locations(db)
 
 
+@router.get("/product-names", response_model=List[str])
+def get_product_names(db: Session = Depends(get_db)):
+    """Get all unique product names from inventory items (all statuses)."""
+    results = db.query(InventoryItem.product_name).distinct().order_by(InventoryItem.product_name).all()
+    return [r[0] for r in results]
+
+
 @router.get("/{item_id}", response_model=InventoryItemResponse)
 def get_item(item_id: int, db: Session = Depends(get_db)):
     """Get a single inventory item by ID."""
@@ -56,6 +66,24 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
     return InventoryItemResponse.model_validate(item)
 
 
+def _sync_product_stock(db: Session, product_id: int):
+    """Recompute product.stock from all active inventory lots."""
+    total = db.query(sqlfunc.sum(InventoryItem.quantity)).filter(
+        InventoryItem.product_id == product_id,
+        InventoryItem.status == "active",
+    ).scalar() or 0.0
+    product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
+    if product:
+        product.stock = total
+        if total <= 0:
+            product.status = "out"
+        elif total <= 20:
+            product.status = "low"
+        else:
+            product.status = "available"
+        db.commit()
+
+
 @router.post("/", response_model=InventoryItemResponse, status_code=status.HTTP_201_CREATED)
 def create_item(
     payload: InventoryItemCreate,
@@ -63,11 +91,33 @@ def create_item(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     """Register a new inventory entry."""
+    # Resolve or create the catalog product
+    product: ProductModel | None = None
+    if payload.product_id:
+        product = db.query(ProductModel).filter(ProductModel.id == payload.product_id).first()
+    if not product:
+        product = db.query(ProductModel).filter(
+            sqlfunc.lower(ProductModel.name) == payload.product_name.lower()
+        ).first()
+    if not product:
+        product = ProductModel(
+            name=payload.product_name,
+            category=payload.category,
+            stock=0,
+            price=0,
+            unit=payload.unit,
+            status="out",
+            image_emoji="📦",
+        )
+        db.add(product)
+        db.flush()
+
     item = InventoryItem(
-        product_name=payload.product_name,
-        category=payload.category,
+        product_id=product.id,
+        product_name=product.name,
+        category=product.category,
         quantity=payload.quantity,
-        unit=payload.unit,
+        unit=product.unit,
         lot_number=payload.lot_number,
         expiry_date=payload.expiry_date,
         location=payload.location,
@@ -79,16 +129,17 @@ def create_item(
     db.add(item)
     db.flush()
 
-    # Record movement
     movement = InventoryMovement(
         inventory_item_id=item.id,
         movement_type="entry",
         quantity=payload.quantity,
         user_id=current_user.id if current_user else None,
-        notes=f"Entrada de {payload.product_name}",
+        notes=f"Entrada de {product.name}",
     )
     db.add(movement)
     db.commit()
+
+    _sync_product_stock(db, product.id)
     db.refresh(item)
     return InventoryItemResponse.model_validate(item)
 
@@ -153,5 +204,8 @@ def register_output(
     )
     db.add(movement)
     db.commit()
+
+    if item.product_id:
+        _sync_product_stock(db, item.product_id)
     db.refresh(item)
     return InventoryItemResponse.model_validate(item)

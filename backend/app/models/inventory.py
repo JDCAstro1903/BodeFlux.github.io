@@ -8,6 +8,7 @@ class InventoryItem(Base):
     __tablename__ = "inventory_items"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True, index=True)
     product_name = Column(String(200), nullable=False)
     category = Column(String(100), nullable=False)
     quantity = Column(Float, nullable=False)

@@ -4,6 +4,7 @@ from datetime import date, datetime
 
 
 class InventoryItemCreate(BaseModel):
+    product_id: Optional[int] = None
     product_name: str
     category: str
     quantity: float
@@ -27,6 +28,7 @@ class InventoryItemUpdate(BaseModel):
 
 class InventoryItemResponse(BaseModel):
     id: int
+    product_id: Optional[int] = None
     product_name: str
     category: str
     quantity: float

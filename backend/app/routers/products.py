@@ -57,6 +57,8 @@ def create_product(payload: ProductCreate, db: Session = Depends(get_db)):
         price=payload.price,
         unit=payload.unit,
         image_emoji=payload.image_emoji or "📦",
+        provider_id=payload.provider_id,
+        provider_name=payload.provider_name,
     )
     _update_product_status(product)
     db.add(product)

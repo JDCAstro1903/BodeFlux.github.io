@@ -4,6 +4,7 @@ from .product import Product
 from .inventory import InventoryItem, InventoryMovement
 from .sale import Sale, SaleItem
 from .waste import WasteRecord
+from .provider_order import ProviderOrder, ProviderOrderItem
 
 __all__ = [
     "User",
@@ -14,4 +15,6 @@ __all__ = [
     "Sale",
     "SaleItem",
     "WasteRecord",
+    "ProviderOrder",
+    "ProviderOrderItem",
 ]

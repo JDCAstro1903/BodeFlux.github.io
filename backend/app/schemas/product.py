@@ -10,6 +10,8 @@ class ProductCreate(BaseModel):
     price: float
     unit: str
     image_emoji: Optional[str] = "📦"
+    provider_id: Optional[int] = None
+    provider_name: Optional[str] = None
 
 
 class ProductUpdate(BaseModel):
@@ -20,6 +22,8 @@ class ProductUpdate(BaseModel):
     unit: Optional[str] = None
     status: Optional[str] = None
     image_emoji: Optional[str] = None
+    provider_id: Optional[int] = None
+    provider_name: Optional[str] = None
 
 
 class StockUpdate(BaseModel):
@@ -35,6 +39,8 @@ class ProductResponse(BaseModel):
     unit: str
     status: str
     image_emoji: str
+    provider_id: Optional[int] = None
+    provider_name: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:

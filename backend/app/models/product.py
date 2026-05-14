@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Float, DateTime, Enum as SAEnum, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
 
@@ -17,5 +18,7 @@ class Product(Base):
         default="available",
     )
     image_emoji = Column(String(10), default="📦")
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=True)
+    provider_name = Column(String(200), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
