@@ -17,13 +17,19 @@ class Settings(BaseSettings):
     MYSQL_URL: str = ""
     MYSQL_PRIVATE_URL: str = ""
 
-    # Individual Railway MySQL plugin variables
+    # Individual Railway MySQL plugin variables — Railway uses NO-underscore names
     MYSQLHOST: str = ""
-    MYSQLPORT: str = "3306"
+    MYSQLPORT: str = ""
     MYSQLUSER: str = ""
     MYSQLPASSWORD: str = ""
     MYSQLDATABASE: str = ""
-    MYSQL_DATABASE: str = ""  # alternate naming Railway sometimes uses
+
+    # Also accept underscore variants (MYSQL_HOST, MYSQL_PORT, …)
+    MYSQL_HOST: str = ""
+    MYSQL_PORT: str = ""
+    MYSQL_USER: str = ""
+    MYSQL_PASSWORD: str = ""
+    MYSQL_DATABASE: str = ""
 
     JWT_SECRET: str = "agrostack-super-secret-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
@@ -38,12 +44,12 @@ class Settings(BaseSettings):
                 url = candidate
                 break
 
-        # Fallback: build from individual Railway plugin variables
+        # Fallback: build from individual variables (support both naming conventions)
         if not url:
-            host = self.MYSQLHOST
-            port = self.MYSQLPORT or "3306"
-            user = self.MYSQLUSER
-            password = self.MYSQLPASSWORD
+            host = self.MYSQLHOST or self.MYSQL_HOST
+            port = self.MYSQLPORT or self.MYSQL_PORT or "3306"
+            user = self.MYSQLUSER or self.MYSQL_USER
+            password = self.MYSQLPASSWORD or self.MYSQL_PASSWORD
             database = self.MYSQLDATABASE or self.MYSQL_DATABASE
             if host and user and database:
                 url = (
