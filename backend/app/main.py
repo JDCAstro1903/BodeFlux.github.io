@@ -7,18 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine
 from .routers import auth, dashboard, inventory, products, providers, provider_orders, sales, waste
 
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://bodeflux-yf1c4hljd-jdcastro1903-06783a16.vercel.app/"],  # O especifica tu dominio frontend
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 _DEFAULT_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
@@ -28,18 +16,13 @@ _DEFAULT_ORIGINS = [
     "http://127.0.0.1:5174",
     "http://127.0.0.1:5175",
     "http://127.0.0.1:3000",
-    "https://bodefluxgithubio-production.up.railway.app/api/"
+    "https://bodeflux.vercel.app",
 ]
 
 def _get_allowed_origins() -> list[str]:
     extra = os.getenv("CORS_ORIGINS", "")
     extras = [o.strip() for o in extra.split(",") if o.strip()]
     return _DEFAULT_ORIGINS + extras
-
-
-def _get_origin_regex() -> str | None:
-    """Allow all Vercel deployment URLs (production + previews) via regex."""
-    return r"https://.*\.vercel\.app"
 
 
 @asynccontextmanager
@@ -60,11 +43,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow the React frontend (any localhost port for dev + all Vercel deployments)
+# CORS — allow React frontend (localhost dev + production + all Vercel preview deployments)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_get_allowed_origins(),
-    allow_origin_regex=_get_origin_regex(),
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
