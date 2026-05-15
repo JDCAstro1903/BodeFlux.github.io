@@ -13,7 +13,7 @@ def _is_valid_mysql_url(url: str) -> bool:
 
 class Settings(BaseSettings):
     # Full URL candidates (Railway plugin or manual)
-    DATABASE_URL: str = "mysql://root:avYTZdukvpQXVbsOohnnMYguPtcrYnMg@yamanote.proxy.rlwy.net:52890/railway"
+    DATABASE_URL: str = ""
     MYSQL_URL: str = ""
     MYSQL_PRIVATE_URL: str = ""
 
