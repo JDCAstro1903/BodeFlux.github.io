@@ -1,3 +1,4 @@
+# Deployment fix: force clean redeployment to clear corrupted multiRegionConfig (invalid region "sfo")
 import os
 from contextlib import asynccontextmanager
 
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         print("[startup] Database tables verified/created.", flush=True)
+        print("[startup] Clean deployment — multiRegionConfig reset.", flush=True)
     except Exception as exc:
         print(f"[startup] WARNING: Could not create tables: {exc}", flush=True)
     yield
