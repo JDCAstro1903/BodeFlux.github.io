@@ -7,6 +7,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine
 from .routers import auth, dashboard, inventory, products, providers, provider_orders, sales, waste
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # O especifica tu dominio frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 _DEFAULT_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
