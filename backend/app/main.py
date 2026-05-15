@@ -13,7 +13,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # O especifica tu dominio frontend
+    allow_origins=["https://bodeflux-yf1c4hljd-jdcastro1903-06783a16.vercel.app/"],  # O especifica tu dominio frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
