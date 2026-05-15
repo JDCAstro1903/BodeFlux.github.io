@@ -48,11 +48,21 @@ export function WarehouseControl() {
           stock: 0,
           price: entry.price,
           unit: entry.unit,
+          provider_id: entry.providerId,
+          provider_name: entry.provider || undefined,
         });
         productId = created.id;
-      } else if (entry.price > 0) {
-        // Update price on existing product
-        await productApi.update(productId, { price: entry.price });
+      } else {
+        // Update price and provider on existing product
+        const updates: Record<string, unknown> = {};
+        if (entry.price > 0) updates.price = entry.price;
+        if (entry.providerId != null) {
+          updates.provider_id = entry.providerId;
+          updates.provider_name = entry.provider || undefined;
+        }
+        if (Object.keys(updates).length > 0) {
+          await productApi.update(productId, updates);
+        }
       }
 
       await addItem({

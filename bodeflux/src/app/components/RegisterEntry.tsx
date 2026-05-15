@@ -48,7 +48,18 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
     const stamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
     const idPart = String(product.id).padStart(3, '0');
     const lotNumber = `LOT-${idPart}-${stamp}`;
-    setFormData({ ...formData, productId: product.id, productName: product.name, category: product.category, unit: product.unit, lotNumber, price: product.price });
+    setFormData({
+      ...formData,
+      productId: product.id,
+      productName: product.name,
+      category: product.category,
+      unit: product.unit,
+      lotNumber,
+      price: product.price,
+      provider: product.provider_name || formData.provider,
+      providerId: product.provider_id ?? formData.providerId,
+    });
+    if (product.provider_name) setProviderSearch(product.provider_name);
     setProductSearch(product.name);
     setShowProductDropdown(false);
   };

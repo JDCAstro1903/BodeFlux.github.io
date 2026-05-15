@@ -1,4 +1,4 @@
-import { Search, ShoppingCart, Package, TrendingUp, CheckCircle, AlertCircle, Plus, Minus, Truck, Send, Trash2, History, Receipt, ChevronDown, ChevronUp, RefreshCw, Download } from 'lucide-react';
+import { Search, ShoppingCart, Package, TrendingUp, CheckCircle, AlertCircle, Plus, Minus, Truck, Send, Trash2, History, Receipt, ChevronDown, ChevronUp, RefreshCw, Download, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ShoppingCartModal } from './ShoppingCart';
 import { productApi, salesApi, providerOrderApi, type ProductAPI, type SaleResponseAPI } from '../services/api';
@@ -370,13 +370,19 @@ export function SalesView() {
         </div>
       </div>
 
-      {/* Supplier Request Panel */}
+      {/* Supplier Request Modal */}
       {showSupplierRequest && (
         <div
-          className="rounded-[24px] bg-gradient-to-br from-[#1B4332]/10 to-[#2D6A4F]/5 backdrop-blur-xl p-6 border-2 border-[#1B4332]/20"
-          style={{ boxShadow: '0 8px 32px rgba(27, 67, 50, 0.15)' }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          onClick={() => setShowSupplierRequest(false)}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+        <div
+          className="rounded-[24px] bg-white w-full max-w-[560px] max-h-[85vh] flex flex-col overflow-hidden"
+          style={{ boxShadow: '0 30px 80px rgba(0,0,0,0.25)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center flex-shrink-0">
                 <Truck size={20} className="text-white" />
@@ -390,9 +396,16 @@ export function SalesView() {
                 </p>
               </div>
             </div>
-
+            <button
+              onClick={() => setShowSupplierRequest(false)}
+              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all"
+            >
+              <X size={15} className="text-gray-600" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6">
             {supplierRequestItems > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
                 <span className="px-3 py-2 rounded-[10px] bg-[#1B4332]/5 border border-[#1B4332]/10" style={{ fontSize: '12px', color: '#6B7280' }}>
                   {/* Show unique providers */}
                   {(() => {
@@ -425,10 +438,9 @@ export function SalesView() {
                 </button>
               </div>
             )}
-          </div>
 
           {supplierRequestItems > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-2 mt-4">
               {Object.entries(supplierRequests).map(([productId, quantity]) => {
                 const product = products.find(p => p.id === productId);
                 if (!product) return null;
@@ -436,7 +448,7 @@ export function SalesView() {
                 return (
                   <div
                     key={productId}
-                    className="rounded-[16px] bg-white/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="rounded-[16px] bg-gray-50 border border-gray-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <span style={{ fontSize: '24px' }}>{product.image}</span>
@@ -493,6 +505,8 @@ export function SalesView() {
               Selecciona productos con stock bajo para solicitar al proveedor
             </div>
           )}
+          </div>
+        </div>
         </div>
       )}
 

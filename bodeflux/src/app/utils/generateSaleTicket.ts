@@ -15,7 +15,7 @@ export function generateSaleTicket(sale: SaleResponseAPI): void {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
-  doc.text('AgroStack', pageW / 2, 12, { align: 'center' });
+  doc.text('BodeFlux', pageW / 2, 12, { align: 'center' });
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');

@@ -51,7 +51,7 @@ export function SaleTicketPreview({ sale, onClose }: SaleTicketPreviewProps) {
             {/* Header band */}
             <div className="bg-[#1B4332] px-6 py-5 text-center">
               <div style={{ fontSize: '24px', fontWeight: '800', color: 'white', letterSpacing: '-0.5px' }}>
-                AgroStack
+                BodeFlux
               </div>
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '3px' }}>
                 Sistema de Gestion Agricola · Ticket de Venta
