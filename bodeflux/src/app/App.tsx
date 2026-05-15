@@ -60,7 +60,7 @@ function AppContent() {
             <Navigation userRole={userRole} onLogout={logout} />
 
             {/* Main Content Area */}
-            <div className="md:pl-20 pb-20 md:pb-0">
+            <div className="md:pl-20 pb-24 md:pb-0">
               <div className="max-w-7xl mx-auto p-6 md:p-8">
                 {/* Role Badge - Mobile Only */}
                 <div className="md:hidden mb-4 flex justify-end">

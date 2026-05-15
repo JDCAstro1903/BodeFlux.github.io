@@ -1,4 +1,4 @@
-import { Home, Package, AlertTriangle, BarChart3, ShoppingCart, Warehouse, ClipboardList } from 'lucide-react';
+import { Home, Package, AlertTriangle, BarChart3, ShoppingCart, Warehouse, ClipboardList, LogOut } from 'lucide-react';
 import logoImg from '../../imports/logo.png';
 import { Link, useLocation } from 'react-router';
 import { UserProfile } from './UserProfile';
@@ -97,7 +97,10 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#1E293B]/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-[#34D399]/20 z-50 pb-safe">
-        <div className="flex items-center justify-around px-2 py-3">
+        <div
+          className="flex items-center gap-1 px-2 py-2 overflow-x-auto"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -106,7 +109,7 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-[16px] transition-all ${
+                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-[16px] transition-all flex-shrink-0 min-w-[72px] ${
                   isActive ? 'bg-[#1B4332]/10 dark:bg-[#34D399]/10' : ''
                 }`}
               >
@@ -125,10 +128,14 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
             );
           })}
 
-          {/* Mobile User Profile */}
-          <div className="relative">
-            <UserProfile userRole={userRole} onLogout={onLogout} />
-          </div>
+          {/* Mobile Logout */}
+          <button
+            onClick={onLogout}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-[16px] transition-all flex-shrink-0 min-w-[72px] text-gray-400 dark:text-gray-500 hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
+          >
+            <LogOut size={22} />
+            <span className="text-xs font-medium">Salir</span>
+          </button>
         </div>
       </div>
     </>

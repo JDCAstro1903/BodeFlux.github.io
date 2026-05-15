@@ -197,6 +197,8 @@ export function SalesView() {
   );
 
   const totalSalesRevenue = sales.reduce((sum, s) => sum + s.total, 0);
+  const totalUnitsSold = sales.reduce((sum, s) => sum + s.items.reduce((a, i) => a + i.quantity, 0), 0);
+  const formatUnits = (value: number) => new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(value);
 
   return (
     <div className="space-y-6">
@@ -684,9 +686,7 @@ export function SalesView() {
                   <Package size={20} className="text-[#F59E0B]" />
                 </div>
                 <div>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#1B4332' }}>
-                    {sales.reduce((sum, s) => sum + s.items.reduce((a, i) => a + i.quantity, 0), 0)}
-                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#1B4332' }}>{formatUnits(totalUnitsSold)}</div>
                   <div style={{ fontSize: '12px', color: '#6B7280' }}>Unidades Vendidas</div>
                 </div>
               </div>
@@ -721,7 +721,7 @@ export function SalesView() {
                     {/* Sale header row */}
                     <button
                       onClick={() => setExpandedSale(isExpanded ? null : sale.id)}
-                      className="w-full px-6 py-4 flex items-center justify-between gap-4 hover:bg-white/50 transition-all text-left"
+                      className="w-full px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 hover:bg-white/50 transition-all text-left"
                     >
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-[#0071E3]/10 flex items-center justify-center flex-shrink-0">
@@ -741,8 +741,8 @@ export function SalesView() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 flex-shrink-0">
-                        <div className="text-right">
+                      <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4 w-full sm:w-auto flex-shrink-0">
+                        <div className="text-left sm:text-right">
                           <div style={{ fontSize: '18px', fontWeight: '700', color: '#1B4332' }}>${sale.total.toFixed(2)}</div>
                           <div style={{ fontSize: '11px', color: '#9CA3AF' }}>IVA incl.</div>
                         </div>
@@ -766,23 +766,27 @@ export function SalesView() {
 
                     {/* Expanded items */}
                     {isExpanded && (
-                      <div className="border-t border-gray-100 px-6 py-4 space-y-2">
-                        <div className="grid grid-cols-4 gap-2 mb-2" style={{ fontSize: '11px', fontWeight: '600', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div className="border-t border-gray-100 px-4 sm:px-6 py-4 space-y-2">
+                        <div className="hidden sm:grid grid-cols-4 gap-2 mb-2" style={{ fontSize: '11px', fontWeight: '600', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           <span className="col-span-2">Producto</span>
                           <span className="text-center">Cant.</span>
                           <span className="text-right">Subtotal</span>
                         </div>
                         {sale.items.map((item) => (
-                          <div key={item.id} className="grid grid-cols-4 gap-2 items-center py-2 border-b border-gray-50 last:border-0">
-                            <div className="col-span-2" style={{ fontSize: '14px', fontWeight: '500', color: '#1B4332' }}>
+                          <div key={item.id} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-center py-2 border-b border-gray-50 last:border-0">
+                            <div className="sm:col-span-2" style={{ fontSize: '14px', fontWeight: '500', color: '#1B4332' }}>
                               {item.product_name}
                               <div style={{ fontSize: '12px', color: '#9CA3AF' }}>${item.unit_price.toFixed(2)} c/u</div>
                             </div>
-                            <div className="text-center" style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                              {item.quantity}
-                            </div>
-                            <div className="text-right" style={{ fontSize: '14px', fontWeight: '700', color: '#1B4332' }}>
-                              ${item.total_price.toFixed(2)}
+                            <div className="flex items-center justify-between sm:contents">
+                              <div className="sm:text-center" style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                                <span className="sm:hidden" style={{ fontSize: '12px', color: '#9CA3AF', fontWeight: '500' }}>Cant.: </span>
+                                {formatUnits(item.quantity)}
+                              </div>
+                              <div className="text-right" style={{ fontSize: '14px', fontWeight: '700', color: '#1B4332' }}>
+                                <span className="sm:hidden" style={{ fontSize: '12px', color: '#9CA3AF', fontWeight: '500' }}>Subtotal: </span>
+                                ${item.total_price.toFixed(2)}
+                              </div>
                             </div>
                           </div>
                         ))}
