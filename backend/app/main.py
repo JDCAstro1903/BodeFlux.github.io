@@ -16,6 +16,7 @@ _DEFAULT_ORIGINS = [
     "http://127.0.0.1:5174",
     "http://127.0.0.1:5175",
     "http://127.0.0.1:3000",
+    "https://bodefluxgithubio-production.up.railway.app/api/"
 ]
 
 def _get_allowed_origins() -> list[str]:
@@ -31,8 +32,12 @@ def _get_origin_regex() -> str | None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create database tables on startup."""
-    Base.metadata.create_all(bind=engine)
+    """Create database tables on startup (non-fatal if DB is unavailable)."""
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("[startup] Database tables verified/created.", flush=True)
+    except Exception as exc:
+        print(f"[startup] WARNING: Could not create tables: {exc}", flush=True)
     yield
 
 
