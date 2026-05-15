@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import logoImg from '../../imports/logo.png';
-import { User, Lock, Package, TrendingUp, ShoppingCart, Loader2 } from 'lucide-react';
+import { User, Lock, Package, TrendingUp, ShoppingCart, Loader2, Eye, EyeOff } from 'lucide-react';
 
 type UserRole = 'warehouse' | 'sales' | 'executive';
 
@@ -15,6 +15,7 @@ export function LoginScreen({ onLogin, error: externalError }: LoginScreenProps)
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const displayError = localError || externalError;
 
@@ -199,10 +200,10 @@ export function LoginScreen({ onLogin, error: externalError }: LoginScreenProps)
                 </div>
                 <input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 rounded-[16px] bg-white/50 backdrop-blur-sm border border-white/50 focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 transition-all"
+                  className="w-full pl-12 pr-12 py-4 rounded-[16px] bg-white/50 backdrop-blur-sm border border-white/50 focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 transition-all"
                   style={{
                     boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.05)',
                     fontSize: '16px',
@@ -210,6 +211,14 @@ export function LoginScreen({ onLogin, error: externalError }: LoginScreenProps)
                   }}
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-[#6B7280] hover:text-[#1B4332] hover:bg-white/70 transition-all flex items-center justify-center"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
@@ -240,16 +249,6 @@ export function LoginScreen({ onLogin, error: externalError }: LoginScreenProps)
             </>
           )}
 
-          {/* Footer */}
-          <div className={`mt-8 text-center ${!selectedRole ? 'hidden' : ''}`}>
-            <a
-              href="#"
-              className="hover:text-[#0071E3] transition-colors"
-              style={{ fontSize: '13px', color: '#6B7280', fontWeight: '500' }}
-            >
-              ¿Olvidaste tu contraseña?
-            </a>
-          </div>
         </div>
       </div>
     </div>

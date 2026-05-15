@@ -1,7 +1,18 @@
-import { Home, Package, AlertTriangle, BarChart3, ShoppingCart, Warehouse, ClipboardList, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Home, Package, AlertTriangle, BarChart3, ShoppingCart, Warehouse, ClipboardList, LogOut, MoreHorizontal } from 'lucide-react';
 import logoImg from '../../imports/logo.png';
 import { Link, useLocation } from 'react-router';
 import { UserProfile } from './UserProfile';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 
 type UserRole = 'warehouse' | 'sales' | 'executive';
 
@@ -12,6 +23,8 @@ interface NavigationProps {
 
 export function Navigation({ userRole, onLogout }: NavigationProps) {
   const location = useLocation();
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Navigation items based on role
   const getNavItems = () => {
@@ -43,6 +56,14 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
   };
 
   const navItems = getNavItems();
+  const mobileVisibleLimit = 4;
+  const visibleNavItems = navItems.slice(0, mobileVisibleLimit);
+  const overflowNavItems = navItems.slice(mobileVisibleLimit);
+  const hasOverflowActive = overflowNavItems.some((item) => item.path === location.pathname);
+
+  useEffect(() => {
+    setShowMoreMenu(false);
+  }, [location.pathname]);
 
   return (
     <>
@@ -97,11 +118,8 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#1E293B]/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-[#34D399]/20 z-50 pb-safe">
-        <div
-          className="flex items-center gap-1 px-2 py-2 overflow-x-auto"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {navItems.map((item) => {
+        <div className="flex items-stretch justify-between gap-1 px-2 py-2">
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
 
@@ -109,16 +127,16 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-[16px] transition-all flex-shrink-0 min-w-[72px] ${
+                className={`flex-1 min-w-0 flex flex-col items-center gap-1 px-1 py-2 rounded-[16px] transition-all ${
                   isActive ? 'bg-[#1B4332]/10 dark:bg-[#34D399]/10' : ''
                 }`}
               >
                 <Icon
-                  size={22}
+                  size={20}
                   className={isActive ? 'text-[#1B4332] dark:text-[#34D399]' : 'text-gray-400 dark:text-gray-500'}
                 />
                 <span
-                  className={`text-xs font-medium ${
+                  className={`text-[10px] leading-none font-medium truncate max-w-full ${
                     isActive ? 'text-[#1B4332] dark:text-[#34D399]' : 'text-gray-400 dark:text-gray-500'
                   }`}
                 >
@@ -128,16 +146,88 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
             );
           })}
 
+          {overflowNavItems.length > 0 && (
+            <button
+              onClick={() => setShowMoreMenu((prev) => !prev)}
+              className={`flex-1 min-w-0 flex flex-col items-center gap-1 px-1 py-2 rounded-[16px] transition-all ${
+                showMoreMenu || hasOverflowActive ? 'bg-[#1B4332]/10 dark:bg-[#34D399]/10' : ''
+              }`}
+            >
+              <MoreHorizontal
+                size={20}
+                className={showMoreMenu || hasOverflowActive ? 'text-[#1B4332] dark:text-[#34D399]' : 'text-gray-400 dark:text-gray-500'}
+              />
+              <span
+                className={`text-[10px] leading-none font-medium ${
+                  showMoreMenu || hasOverflowActive ? 'text-[#1B4332] dark:text-[#34D399]' : 'text-gray-400 dark:text-gray-500'
+                }`}
+              >
+                Más
+              </span>
+            </button>
+          )}
+
           {/* Mobile Logout */}
           <button
-            onClick={onLogout}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-[16px] transition-all flex-shrink-0 min-w-[72px] text-gray-400 dark:text-gray-500 hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
+            onClick={() => setShowLogoutConfirm(true)}
+            className="flex-1 min-w-0 flex flex-col items-center gap-1 px-1 py-2 rounded-[16px] transition-all text-gray-400 dark:text-gray-500 hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
           >
-            <LogOut size={22} />
-            <span className="text-xs font-medium">Salir</span>
+            <LogOut size={20} />
+            <span className="text-[10px] leading-none font-medium">Salir</span>
           </button>
         </div>
+
+        {showMoreMenu && overflowNavItems.length > 0 && (
+          <>
+            <button
+              onClick={() => setShowMoreMenu(false)}
+              className="absolute inset-0 -top-64 bg-transparent"
+              aria-label="Cerrar menú más"
+            />
+            <div className="absolute bottom-[calc(100%+8px)] right-3 w-52 rounded-[18px] bg-white/95 dark:bg-[#1E293B]/95 backdrop-blur-xl border border-white/60 dark:border-[#34D399]/20 shadow-2xl overflow-hidden">
+              {overflowNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`w-full px-4 py-3 flex items-center gap-3 transition-colors ${
+                      isActive
+                        ? 'bg-[#1B4332]/10 dark:bg-[#34D399]/10 text-[#1B4332] dark:text-[#34D399]'
+                        : 'text-[#6B7280] dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#334155]'
+                    }`}
+                  >
+                    <Icon size={17} />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Mobile logout confirmation */}
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cerrar sesión?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se cerrará tu sesión actual en este dispositivo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onLogout}
+              className="bg-[#EF4444] hover:bg-[#DC2626] text-white"
+            >
+              Sí, salir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
