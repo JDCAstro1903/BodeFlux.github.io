@@ -260,16 +260,16 @@ export function SalesView() {
           {/* Cart Summary - Clickable - catalog only */}
           {activeTab === 'catalog' && <button
             onClick={() => setShowCart(true)}
-            className="rounded-[20px] bg-gradient-to-br from-[#0071E3] to-[#005BB5] px-6 py-4 text-white relative hover:shadow-2xl transition-all"
+            className="rounded-[20px] bg-gradient-to-br from-[#0071E3] to-[#005BB5] px-3 sm:px-6 py-2 sm:py-4 text-white relative hover:shadow-2xl transition-all"
             style={{ boxShadow: '0 8px 24px rgba(0, 113, 227, 0.3)' }}
           >
-            <div className="flex items-center gap-3">
-              <ShoppingCart size={24} />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <ShoppingCart size={20} />
               <div>
-                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                <div className="hidden sm:block" style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)' }}>
                   Carrito
                 </div>
-                <div style={{ fontSize: '20px', fontWeight: '700' }}>
+                <div className="text-sm sm:text-xl" style={{ fontWeight: '700' }}>
                   ${cartTotal.toFixed(2)}
                 </div>
               </div>
@@ -376,9 +376,9 @@ export function SalesView() {
           className="rounded-[24px] bg-gradient-to-br from-[#1B4332]/10 to-[#2D6A4F]/5 backdrop-blur-xl p-6 border-2 border-[#1B4332]/20"
           style={{ boxShadow: '0 8px 32px rgba(27, 67, 50, 0.15)' }}
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center flex-shrink-0">
                 <Truck size={20} className="text-white" />
               </div>
               <div>
@@ -436,7 +436,7 @@ export function SalesView() {
                 return (
                   <div
                     key={productId}
-                    className="rounded-[16px] bg-white/60 p-4 flex items-center justify-between gap-3"
+                    className="rounded-[16px] bg-white/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <span style={{ fontSize: '24px' }}>{product.image}</span>
@@ -457,7 +457,7 @@ export function SalesView() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                       <button
                         onClick={() => setRequestQuantity(productId, quantity - 1)}
                         className="w-7 h-7 rounded-full bg-[#1B4332]/10 text-[#1B4332] hover:bg-[#1B4332]/20 transition-all flex items-center justify-center"

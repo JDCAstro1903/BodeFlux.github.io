@@ -47,17 +47,22 @@ export function ShoppingCartModal({ isOpen, onClose, cart, products, onUpdateQua
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end md:items-center md:justify-end p-0 md:p-4">
       <div
-        className="bg-white w-full md:w-[450px] h-full md:h-[90vh] md:rounded-[32px] flex flex-col overflow-hidden"
+        className="bg-white w-full md:w-[450px] h-[92dvh] md:h-[90vh] rounded-t-[32px] md:rounded-[32px] flex flex-col overflow-hidden"
         style={{ boxShadow: '0 20px 80px rgba(0, 0, 0, 0.3)' }}
       >
+        {/* Drag handle - mobile only */}
+        <div className="flex justify-center pt-3 pb-1 md:hidden flex-shrink-0 bg-gradient-to-br from-[#0071E3] to-[#005BB5]">
+          <div className="w-10 h-1 rounded-full bg-white/40" />
+        </div>
+
         {/* Header */}
-        <div className="bg-gradient-to-br from-[#0071E3] to-[#005BB5] p-6 flex items-center justify-between">
+        <div className="bg-gradient-to-br from-[#0071E3] to-[#005BB5] px-5 py-3 sm:p-6 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <ShoppingCart size={24} className="text-white" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <ShoppingCart size={20} className="text-white sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'white' }}>
+              <h2 className="text-xl sm:text-2xl" style={{ fontWeight: '700', color: 'white' }}>
                 Carrito
               </h2>
               <p style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
