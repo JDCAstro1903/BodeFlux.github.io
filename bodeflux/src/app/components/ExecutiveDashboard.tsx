@@ -372,10 +372,10 @@ export function ExecutiveDashboard() {
           </div>
           <div>
             <h3 className="text-base md:text-lg font-semibold text-[#1B4332] dark:text-[#34D399]">
-              Ingresos vs Gastos
+              Ventas vs Costo de Inventario
             </h3>
             <p className="text-xs text-[#6B7280] dark:text-[#CBD5E1]">
-              Análisis financiero mensual
+              Últimos 6 meses — datos reales de BD
             </p>
           </div>
         </div>
@@ -394,9 +394,10 @@ export function ExecutiveDashboard() {
             </defs>
             <CartesianGrid key="rev-grid" strokeDasharray="3 3" stroke="rgba(27, 67, 50, 0.1)" />
             <XAxis key="rev-x" dataKey="month" stroke="#6B7280" style={{ fontSize: '12px' }} />
-            <YAxis key="rev-y" stroke="#6B7280" style={{ fontSize: '12px' }} />
+            <YAxis key="rev-y" stroke="#6B7280" style={{ fontSize: '12px' }} tickFormatter={(v) => `$${Number(v).toLocaleString('es-MX', { notation: 'compact' })}`} />
             <Tooltip
               key="rev-tooltip"
+              formatter={(value: number) => [`$${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, undefined]}
               contentStyle={{
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 border: 'none',
@@ -409,7 +410,7 @@ export function ExecutiveDashboard() {
               key="area-revenue"
               type="monotone"
               dataKey="revenue"
-              name="Ingresos"
+              name="Ventas"
               stroke="#10B981"
               strokeWidth={3}
               fillOpacity={1}
@@ -419,7 +420,7 @@ export function ExecutiveDashboard() {
               key="area-expenses"
               type="monotone"
               dataKey="expenses"
-              name="Gastos"
+              name="Costo Inventario"
               stroke="#EF4444"
               strokeWidth={3}
               fillOpacity={1}
@@ -442,10 +443,10 @@ export function ExecutiveDashboard() {
             </div>
             <div>
               <h3 className="text-base md:text-lg font-semibold text-[#1B4332] dark:text-[#34D399]">
-                Niveles de Stock
+                Entradas al Almacén
               </h3>
               <p className="text-xs text-[#6B7280] dark:text-[#CBD5E1]">
-                Últimos 4 meses
+                Unidades recibidas — últimos 6 meses
               </p>
             </div>
           </div>
@@ -477,6 +478,7 @@ export function ExecutiveDashboard() {
                 key="line-stock"
                 type="monotone"
                 dataKey="stock"
+                name="Unidades recibidas"
                 stroke="#1B4332"
                 strokeWidth={3}
                 dot={{ fill: '#1B4332', r: 5 }}
@@ -613,7 +615,7 @@ export function ExecutiveDashboard() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, value }) => `${name}: ${value}%`}
+                label={({ name, value }) => `${name}: ${value}`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -642,7 +644,7 @@ export function ExecutiveDashboard() {
                   style={{ backgroundColor: item.color }}
                 />
                 <span className="text-xs text-[#6B7280] dark:text-[#CBD5E1]">
-                  {item.name} ({item.value}%)
+                  {item.name} ({item.value} uds)
                 </span>
               </div>
             ))}

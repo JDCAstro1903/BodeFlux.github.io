@@ -1,15 +1,38 @@
+import calendar
 from datetime import date, timedelta
 from typing import List
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from ..models.inventory import InventoryItem, InventoryMovement
 from ..models.product import Product
 from ..models.provider import Provider
+from ..models.provider_order import ProviderOrder
 from ..models.sale import Sale, SaleItem
 from ..models.user import User
 from ..models.waste import WasteRecord
+
+MONTH_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
+
+def _prev_months(n: int) -> List[date]:
+    """Return the first day of each of the last n calendar months (oldest first)."""
+    today = date.today()
+    months: List[date] = []
+    for i in range(n - 1, -1, -1):
+        m = today.month - i
+        y = today.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        months.append(date(y, m, 1))
+    return months
+
+
+def _month_end(first: date) -> date:
+    last_day = calendar.monthrange(first.year, first.month)[1]
+    return first.replace(day=last_day)
 
 
 def get_kpis(db: Session) -> dict:
@@ -65,17 +88,21 @@ def get_kpis(db: Session) -> dict:
 
 
 def get_stock_chart(db: Session) -> List[dict]:
-    """Get stock levels over time for chart."""
-    products = db.query(Product).all()
-    total_stock = sum(p.stock for p in products)
-
-    # Generate simulated monthly data based on current stock
-    months = ["Ene", "Feb", "Mar", "Abr"]
-    base = max(total_stock * 0.7, 100)
-    return [
-        {"label": m, "value": round(base + (i * total_stock * 0.1), 0)}
-        for i, m in enumerate(months)
-    ]
+    """Inventory entries (quantity) per month for the last 6 months."""
+    result = []
+    for first in _prev_months(6):
+        last = _month_end(first)
+        total = (
+            db.query(func.coalesce(func.sum(InventoryMovement.quantity), 0))
+            .filter(
+                func.date(InventoryMovement.created_at) >= first,
+                func.date(InventoryMovement.created_at) <= last,
+                InventoryMovement.movement_type == "entry",
+            )
+            .scalar()
+        )
+        result.append({"label": MONTH_ES[first.month - 1], "value": float(total)})
+    return result
 
 
 def get_category_chart(db: Session) -> List[dict]:
@@ -89,20 +116,38 @@ def get_category_chart(db: Session) -> List[dict]:
 
 
 def get_revenue_chart(db: Session) -> List[dict]:
-    """Get revenue vs expenses by month."""
-    months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun"]
-    # Calculate based on actual sales
-    total_sales = db.query(func.coalesce(func.sum(Sale.total), 0)).scalar()
-    base = max(float(total_sales) / 6, 10000)
+    """Real monthly sales vs estimated inventory cost for the last 6 months."""
+    result = []
+    for first in _prev_months(6):
+        last = _month_end(first)
 
-    return [
-        {
-            "label": m,
-            "value": round(base * (0.8 + i * 0.08), 0),
-            "value2": round(base * (0.5 + i * 0.05), 0),
-        }
-        for i, m in enumerate(months)
-    ]
+        # Real sales revenue this month
+        revenue = (
+            db.query(func.coalesce(func.sum(Sale.total), 0))
+            .filter(
+                func.date(Sale.created_at) >= first,
+                func.date(Sale.created_at) <= last,
+            )
+            .scalar()
+        )
+
+        # Cost of inventory received this month (qty × product sale price as proxy)
+        cost = (
+            db.query(func.coalesce(func.sum(InventoryItem.quantity * Product.price), 0))
+            .join(Product, InventoryItem.product_id == Product.id)
+            .filter(
+                InventoryItem.receipt_date >= first,
+                InventoryItem.receipt_date <= last,
+            )
+            .scalar()
+        )
+
+        result.append({
+            "label": MONTH_ES[first.month - 1],
+            "value": float(revenue),
+            "value2": float(cost),
+        })
+    return result
 
 
 def get_movement_chart(db: Session) -> List[dict]:
@@ -155,7 +200,25 @@ def get_top_products(db: Session) -> List[dict]:
 
 
 def get_top_providers(db: Session) -> List[dict]:
-    """Get top providers by rating."""
+    """Top providers by rating with real order counts from provider_orders."""
+    # Aggregate order counts per provider_id
+    order_stats = (
+        db.query(
+            ProviderOrder.provider_id,
+            func.count(ProviderOrder.id).label("total_orders"),
+            func.sum(
+                case((ProviderOrder.status == "received", 1), else_=0)
+            ).label("received_orders"),
+        )
+        .filter(ProviderOrder.provider_id.isnot(None))
+        .group_by(ProviderOrder.provider_id)
+        .all()
+    )
+    stats_map = {
+        row.provider_id: (int(row.total_orders), int(row.received_orders or 0))
+        for row in order_stats
+    }
+
     providers = (
         db.query(Provider)
         .filter(Provider.status == "active")
@@ -164,12 +227,14 @@ def get_top_providers(db: Session) -> List[dict]:
         .all()
     )
 
-    return [
-        {
+    result = []
+    for p in providers:
+        total, received = stats_map.get(p.id, (0, 0))
+        on_time = round(received / total * 100, 1) if total > 0 else 0.0
+        result.append({
             "name": p.name,
             "rating": p.rating,
-            "orders": 0,  # Would come from a real orders table
-            "on_time": 95.0 + (p.rating / 5) * 5,
-        }
-        for p in providers
-    ]
+            "orders": total,
+            "on_time": on_time,
+        })
+    return result
