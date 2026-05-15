@@ -3,7 +3,9 @@
  * Centralized service layer for all backend communication.
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000/api';
+const _rawBase: string = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000/api';
+// Ensure the URL is always absolute (guards against missing protocol in env var)
+const API_BASE = _rawBase.startsWith('http') ? _rawBase : `https://${_rawBase}`;
 
 function getToken(): string | null {
   return localStorage.getItem('agrostack_token');

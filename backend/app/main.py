@@ -24,6 +24,11 @@ def _get_allowed_origins() -> list[str]:
     return _DEFAULT_ORIGINS + extras
 
 
+def _get_origin_regex() -> str | None:
+    """Allow all Vercel deployment URLs (production + previews) via regex."""
+    return r"https://.*\.vercel\.app"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Create database tables on startup."""
@@ -38,10 +43,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow the React frontend (any localhost port for dev)
+# CORS — allow the React frontend (any localhost port for dev + all Vercel deployments)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_get_allowed_origins(),
+    allow_origin_regex=_get_origin_regex(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
