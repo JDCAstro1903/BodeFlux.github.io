@@ -17,7 +17,10 @@ _DEFAULT_ORIGINS = [
     "http://127.0.0.1:5174",
     "http://127.0.0.1:5175",
     "http://127.0.0.1:3000",
+    # Production Vercel deployment
     "https://bodeflux.vercel.app",
+    # All Vercel preview deployments (wildcard supported in Starlette ≥ 0.40)
+    "https://*.vercel.app",
 ]
 
 def _get_allowed_origins() -> list[str]:
@@ -46,10 +49,13 @@ app = FastAPI(
 )
 
 # CORS — allow React frontend (localhost dev + production + all Vercel preview deployments)
+# Note: "https://*.vercel.app" wildcard in allow_origins covers all preview URLs.
+# allow_origin_regex is intentionally omitted — combining it with a non-["*"]
+# allow_origins list triggers a Starlette bug where preflight responses drop the
+# Access-Control-Allow-Origin header, causing 502s on the OPTIONS request.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_get_allowed_origins(),
-    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
