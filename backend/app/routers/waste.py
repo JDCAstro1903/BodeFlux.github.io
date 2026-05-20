@@ -41,7 +41,7 @@ def create_waste(
     current_user: User = Depends(get_optional_user),
 ):
     """Register a waste (merma) record."""
-    # If linked to an inventory item, mark it as waste
+    # If linked to an inventory item, subtract the waste quantity
     if payload.inventory_item_id:
         item = (
             db.query(InventoryItem)
@@ -49,11 +49,15 @@ def create_waste(
             .first()
         )
         if item and item.status == "active":
-            item.status = "waste"
+            waste_qty = min(payload.quantity, item.quantity)
+            item.quantity -= waste_qty
+            if item.quantity <= 0:
+                item.quantity = 0
+                item.status = "waste"
             movement = InventoryMovement(
                 inventory_item_id=item.id,
                 movement_type="waste",
-                quantity=payload.quantity,
+                quantity=waste_qty,
                 user_id=current_user.id if current_user else None,
                 notes=f"Merma: {payload.reason}",
             )
@@ -69,11 +73,15 @@ def create_waste(
             .first()
         )
         if item:
-            item.status = "waste"
+            waste_qty = min(payload.quantity, item.quantity)
+            item.quantity -= waste_qty
+            if item.quantity <= 0:
+                item.quantity = 0
+                item.status = "waste"
             movement = InventoryMovement(
                 inventory_item_id=item.id,
                 movement_type="waste",
-                quantity=payload.quantity,
+                quantity=waste_qty,
                 user_id=current_user.id if current_user else None,
                 notes=f"Merma: {payload.reason}",
             )
