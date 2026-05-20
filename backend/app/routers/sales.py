@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..models.inventory import InventoryItem, InventoryMovement
 from ..models.product import Product
 from ..models.sale import Sale, SaleItem
 from ..models.user import User
@@ -71,12 +72,33 @@ def create_sale(
             )
         )
 
-        # Deduct stock
+        # Deduct stock from product and inventory items (FIFO by expiry date)
         product.stock -= item_data.quantity
         if product.stock <= 0:
             product.status = "out"
         elif product.stock <= 20:
             product.status = "low"
+
+        remaining = item_data.quantity
+        lots = (
+            db.query(InventoryItem)
+            .filter(
+                InventoryItem.product_id == item_data.product_id,
+                InventoryItem.status == "active",
+            )
+            .order_by(InventoryItem.expiry_date.asc())
+            .all()
+        )
+        for lot in lots:
+            if remaining <= 0:
+                break
+            if lot.quantity <= remaining:
+                remaining -= lot.quantity
+                lot.quantity = 0
+                lot.status = "output"
+            else:
+                lot.quantity -= remaining
+                remaining = 0
 
     tax = subtotal * TAX_RATE
     total = subtotal + tax

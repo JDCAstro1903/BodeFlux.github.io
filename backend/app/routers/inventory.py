@@ -161,6 +161,11 @@ def update_item(
 
     db.commit()
     db.refresh(item)
+
+    if ("quantity" in update_data or "status" in update_data) and item.product_id:
+        _sync_product_stock(db, item.product_id)
+        db.refresh(item)
+
     return InventoryItemResponse.model_validate(item)
 
 
@@ -170,8 +175,11 @@ def delete_item(item_id: int, db: Session = Depends(get_db)):
     item = db.query(InventoryItem).filter(InventoryItem.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item no encontrado")
+    product_id = item.product_id
     db.delete(item)
     db.commit()
+    if product_id:
+        _sync_product_stock(db, product_id)
 
 
 @router.post("/{item_id}/output", response_model=InventoryItemResponse)
