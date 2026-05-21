@@ -1,5 +1,4 @@
-import { TrendingUp, TrendingDown, DollarSign, Percent, BarChart3, Download, FileText, PieChart as PieChartIcon, Activity, X, Flame, Share2, QrCode } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import { TrendingUp, TrendingDown, DollarSign, Percent, BarChart3, Download, FileText, PieChart as PieChartIcon, Activity, X, Flame } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
 import { useState, useEffect } from 'react';
 import { dashboardApi, type KPIsAPI } from '../services/api';
@@ -59,7 +58,6 @@ export function ExecutiveDashboard() {
   });
 
   const [pdfModal, setPdfModal] = useState<{ url: string; title: string; filename: string } | null>(null);
-  const [showQr, setShowQr] = useState(false);
 
   // Fetch all dashboard data from API
   useEffect(() => {
@@ -365,7 +363,6 @@ export function ExecutiveDashboard() {
 
     const blobUrl = doc.output('bloburl') as unknown as string;
     const filename = `BodeFlux_${reportType.replace(/\s+/g, '_')}_${now.getFullYear()}.pdf`;
-    setShowQr(false);
     setPdfModal({ url: blobUrl, title: reportType, filename });
   };
 
@@ -1037,15 +1034,6 @@ export function ExecutiveDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowQr((v) => !v)}
-                className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-white/20 hover:bg-white/30 transition-all text-white"
-                style={{ fontSize: '13px', fontWeight: '600' }}
-                title="Compartir via QR"
-              >
-                <Share2 size={15} />
-                Compartir
-              </button>
               <a
                 href={pdfModal.url}
                 download={pdfModal.filename}
@@ -1056,7 +1044,7 @@ export function ExecutiveDashboard() {
                 Descargar
               </a>
               <button
-                onClick={() => { setPdfModal(null); setShowQr(false); }}
+                onClick={() => setPdfModal(null)}
                 className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 transition-all flex items-center justify-center"
               >
                 <X size={18} />
@@ -1064,49 +1052,8 @@ export function ExecutiveDashboard() {
             </div>
           </div>
 
-          {/* QR Share overlay */}
-          {showQr && (
-            <div
-              className="absolute inset-0 z-10 flex items-center justify-center"
-              style={{ backgroundColor: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}
-              onClick={() => setShowQr(false)}
-            >
-              <div
-                className="bg-white rounded-[20px] p-6 flex flex-col items-center gap-4"
-                style={{ boxShadow: '0 16px 48px rgba(0,0,0,0.4)', minWidth: '260px' }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center gap-2 text-[#1B4332]">
-                  <QrCode size={20} />
-                  <span style={{ fontWeight: 700, fontSize: '15px' }}>Compartir Reporte</span>
-                </div>
-                <QRCodeSVG
-                  value={`${window.location.origin}${window.location.pathname}\n${pdfModal.title}\nGenerado: ${new Date().toLocaleDateString('es-MX')}`}
-                  size={200}
-                  fgColor="#1B4332"
-                  bgColor="#ffffff"
-                  level="M"
-                  includeMargin
-                />
-                <p style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center', maxWidth: '220px' }}>
-                  Escanea para abrir BodeFlux en otro dispositivo
-                </p>
-                <p style={{ fontSize: '11px', color: '#9CA3AF', textAlign: 'center', maxWidth: '220px' }}>
-                  {pdfModal.title} &mdash; {new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
-                <button
-                  onClick={() => setShowQr(false)}
-                  className="px-5 py-2 rounded-[10px] text-white text-sm font-semibold"
-                  style={{ backgroundColor: '#1B4332' }}
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* PDF viewer */}
-          <div className="flex-1 bg-[#525659] relative">
+          <div className="flex-1 bg-[#525659]">
             <object
               data={pdfModal.url}
               type="application/pdf"
