@@ -15,6 +15,7 @@ from ..schemas.inventory import (
     InventoryItemUpdate,
     InventoryItemWithAlert,
     LocationStatus,
+    MovementResponse,
     OutputRequest,
 )
 from ..services.inventory_service import get_items_with_alerts, get_occupied_locations
@@ -55,6 +56,39 @@ def get_product_names(db: Session = Depends(get_db)):
     """Get all unique product names from inventory items (all statuses)."""
     results = db.query(InventoryItem.product_name).distinct().order_by(InventoryItem.product_name).all()
     return [r[0] for r in results]
+
+
+@router.get("/movements", response_model=List[MovementResponse])
+def list_movements(
+    movement_type: Optional[str] = Query(None),
+    limit: int = Query(200, le=500),
+    db: Session = Depends(get_db),
+):
+    """List inventory movements (entries, outputs, waste)."""
+    query = db.query(InventoryMovement)
+    if movement_type:
+        query = query.filter(InventoryMovement.movement_type == movement_type)
+    movements = query.order_by(InventoryMovement.created_at.desc()).limit(limit).all()
+
+    results = []
+    for m in movements:
+        item = m.inventory_item
+        user = m.user
+        results.append(MovementResponse(
+            id=m.id,
+            inventory_item_id=m.inventory_item_id,
+            movement_type=m.movement_type,
+            quantity=m.quantity,
+            user_id=m.user_id,
+            destination=m.destination,
+            notes=m.notes,
+            created_at=m.created_at,
+            product_name=item.product_name if item else None,
+            unit=item.unit if item else None,
+            lot_number=item.lot_number if item else None,
+            user_name=user.name if user else None,
+        ))
+    return results
 
 
 @router.get("/{item_id}", response_model=InventoryItemResponse)

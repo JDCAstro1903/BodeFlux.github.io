@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Home, Package, AlertTriangle, BarChart3, ShoppingCart, Warehouse, ClipboardList, LogOut, MoreHorizontal } from 'lucide-react';
+import { Home, Package, AlertTriangle, BarChart3, ShoppingCart, Warehouse, ClipboardList, LogOut, MoreHorizontal, ArrowLeftRight } from 'lucide-react';
 import logoImg from '../../imports/logo.png';
 import { Link, useLocation } from 'react-router';
 import { UserProfile } from './UserProfile';
@@ -33,6 +33,7 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
         return [
           { path: '/warehouse', icon: Home, label: 'Almacén' },
           { path: '/inventory', icon: Warehouse, label: 'Inventario' },
+          { path: '/movements', icon: ArrowLeftRight, label: 'Movimientos' },
           { path: '/alerts', icon: AlertTriangle, label: 'Semáforo' },
         ];
       case 'sales':
@@ -46,6 +47,7 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
           { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
           { path: '/warehouse', icon: Package, label: 'Almacén' },
           { path: '/inventory', icon: Warehouse, label: 'Inventario' },
+          { path: '/movements', icon: ArrowLeftRight, label: 'Movimientos' },
           { path: '/alerts', icon: AlertTriangle, label: 'Semáforo' },
           { path: '/sales', icon: ShoppingCart, label: 'Ventas' },
           { path: '/orders', icon: ClipboardList, label: 'Pedidos' },

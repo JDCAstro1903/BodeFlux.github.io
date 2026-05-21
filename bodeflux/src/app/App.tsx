@@ -7,6 +7,7 @@ import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { SalesView } from './components/SalesView';
 import { InventoryView } from './components/InventoryView';
 import { ProviderOrders } from './components/ProviderOrders';
+import { InventoryMovements } from './components/InventoryMovements';
 import { Navigation } from './components/Navigation';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { InventoryProvider } from './contexts/InventoryContext';
@@ -81,6 +82,7 @@ function AppContent() {
                   <Route path="/dashboard" element={<ExecutiveDashboard />} />
                   <Route path="/sales" element={<SalesView />} />
                   <Route path="/orders" element={<ProviderOrders />} />
+                  <Route path="/movements" element={<InventoryMovements />} />
                 </Routes>
               </div>
             </div>

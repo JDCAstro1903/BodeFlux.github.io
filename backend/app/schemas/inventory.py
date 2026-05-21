@@ -64,3 +64,21 @@ class LocationStatus(BaseModel):
     is_occupied: bool
     product_name: Optional[str] = None
     lot_number: Optional[str] = None
+
+
+class MovementResponse(BaseModel):
+    id: int
+    inventory_item_id: int
+    movement_type: str
+    quantity: float
+    user_id: Optional[int] = None
+    destination: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+    product_name: Optional[str] = None
+    unit: Optional[str] = None
+    lot_number: Optional[str] = None
+    user_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True

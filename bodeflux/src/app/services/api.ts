@@ -124,6 +124,21 @@ export interface LocationStatusAPI {
   lot_number: string | null;
 }
 
+export interface InventoryMovementAPI {
+  id: number;
+  inventory_item_id: number;
+  movement_type: 'entry' | 'output' | 'waste';
+  quantity: number;
+  user_id: number | null;
+  destination: string | null;
+  notes: string | null;
+  created_at: string | null;
+  product_name: string | null;
+  unit: string | null;
+  lot_number: string | null;
+  user_name: string | null;
+}
+
 export const inventoryApi = {
   list: (status?: string) =>
     request<InventoryItemAPI[]>(`/inventory/${status ? `?status=${status}` : ''}`),
@@ -133,6 +148,12 @@ export const inventoryApi = {
     request<LocationStatusAPI[]>('/inventory/locations'),
   productNames: () =>
     request<string[]>('/inventory/product-names'),
+  movements: (movementType?: string, limit = 200) => {
+    const params = new URLSearchParams();
+    if (movementType) params.set('movement_type', movementType);
+    params.set('limit', String(limit));
+    return request<InventoryMovementAPI[]>(`/inventory/movements?${params.toString()}`);
+  },
   get: (id: number) =>
     request<InventoryItemAPI>(`/inventory/${id}`),
   create: (payload: InventoryCreatePayload) =>
