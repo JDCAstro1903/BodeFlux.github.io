@@ -1,16 +1,17 @@
-import { Package, Search, MapPin, AlertTriangle, CheckCircle, TrendingDown, XCircle, RefreshCw, Hash, Building2 } from 'lucide-react';
+import { Package, Search, MapPin, AlertTriangle, CheckCircle, TrendingDown, XCircle, RefreshCw, Hash, Building2, ShoppingBag } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import { inventoryApi, type InventoryItemAPI } from '../services/api';
+import { inventoryApi, productApi, type InventoryItemAPI, type ProductAPI } from '../services/api';
 
 const CATEGORIES = ['Todos', 'Fertilizantes', 'Semillas', 'Pesticidas', 'Herbicidas', 'Otros'];
 
-type StatusTab = 'active' | 'output' | 'waste' | 'all';
+type StatusTab = 'active' | 'output' | 'waste' | 'all' | 'nostock';
 
 const STATUS_TABS: { value: StatusTab; label: string }[] = [
   { value: 'active', label: 'Activos' },
   { value: 'output', label: 'Salidas' },
   { value: 'waste', label: 'Mermas' },
   { value: 'all', label: 'Todos' },
+  { value: 'nostock', label: 'Sin stock' },
 ];
 
 function expiryInfo(dateStr: string) {
@@ -42,6 +43,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export function InventoryView() {
   const [allItems, setAllItems] = useState<InventoryItemAPI[]>([]);
+  const [products, setProducts] = useState<ProductAPI[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
@@ -50,8 +52,12 @@ export function InventoryView() {
   const loadItems = async () => {
     setLoading(true);
     try {
-      const data = await inventoryApi.list('all');
-      setAllItems(data);
+      const [items, prods] = await Promise.all([
+        inventoryApi.list('all'),
+        productApi.list(),
+      ]);
+      setAllItems(items);
+      setProducts(prods);
     } catch (err) {
       console.error(err);
     } finally {
@@ -65,12 +71,13 @@ export function InventoryView() {
   const activeItems = useMemo(() => allItems.filter(i => i.status === 'active'), [allItems]);
   const expiredCount = useMemo(() => activeItems.filter(i => expiryInfo(i.expiry_date).days <= 0).length, [activeItems]);
   const soonCount = useMemo(() => activeItems.filter(i => { const d = expiryInfo(i.expiry_date).days; return d > 0 && d <= 30; }).length, [activeItems]);
+  const outOfStockProducts = useMemo(() => products.filter(p => p.status === 'out' || p.stock <= 0), [products]);
 
   // Table rows: filter by tab + search + category
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return allItems.filter((item) => {
-      const matchStatus = statusTab === 'all' || item.status === statusTab;
+      const matchStatus = statusTab === 'all' || statusTab === 'nostock' || item.status === statusTab;
       const matchSearch = !q ||
         item.product_name.toLowerCase().includes(q) ||
         item.lot_number.toLowerCase().includes(q) ||
@@ -80,13 +87,27 @@ export function InventoryView() {
     });
   }, [allItems, statusTab, search, categoryFilter]);
 
+  // Filtered out-of-stock products (for nostock tab)
+  const filteredNoStock = useMemo(() => {
+    const q = search.toLowerCase();
+    return outOfStockProducts.filter(p =>
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q) ||
+      (p.provider_name ?? '').toLowerCase().includes(q)
+    );
+  }, [outOfStockProducts, search]);
+
+  const isNoStock = statusTab === 'nostock';
+  const displayCount = isNoStock ? filteredNoStock.length : filtered.length;
+
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#1B4332] dark:text-[#34D399]">Inventario</h1>
-          <p className="text-sm text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">{filtered.length} registro{filtered.length !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">{displayCount} registro{displayCount !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Status tabs */}
@@ -117,19 +138,23 @@ export function InventoryView() {
       </div>
 
       {/* Stats — always from all active items */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-[16px] bg-emerald-50 dark:bg-emerald-900/20 p-4" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button onClick={() => setStatusTab('active')} className={`rounded-[16px] bg-emerald-50 dark:bg-emerald-900/20 p-4 text-left transition-all ${statusTab === 'active' ? 'ring-2 ring-emerald-400' : 'hover:brightness-95'}`} style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{activeItems.length}</p>
           <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">Lotes activos</p>
-        </div>
-        <div className="rounded-[16px] bg-red-50 dark:bg-red-900/20 p-4" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        </button>
+        <button onClick={() => setStatusTab('active')} className="rounded-[16px] bg-red-50 dark:bg-red-900/20 p-4 text-left hover:brightness-95 transition-all" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <p className="text-2xl font-bold text-red-600 dark:text-red-400">{expiredCount}</p>
           <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">Vencidos</p>
-        </div>
-        <div className="rounded-[16px] bg-orange-50 dark:bg-orange-900/20 p-4" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        </button>
+        <button onClick={() => setStatusTab('active')} className="rounded-[16px] bg-orange-50 dark:bg-orange-900/20 p-4 text-left hover:brightness-95 transition-all" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <p className="text-2xl font-bold text-orange-500 dark:text-orange-400">{soonCount}</p>
           <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">Por vencer (30d)</p>
-        </div>
+        </button>
+        <button onClick={() => setStatusTab('nostock')} className={`rounded-[16px] bg-gray-100 dark:bg-gray-800/40 p-4 text-left transition-all ${statusTab === 'nostock' ? 'ring-2 ring-gray-400' : 'hover:brightness-95'}`} style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <p className="text-2xl font-bold text-gray-500 dark:text-gray-400">{outOfStockProducts.length}</p>
+          <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">Sin stock</p>
+        </button>
       </div>
 
       {/* Search + Category filter */}
@@ -168,6 +193,83 @@ export function InventoryView() {
             <div className="animate-spin w-5 h-5 border-2 border-[#1B4332] dark:border-[#34D399] border-t-transparent rounded-full mr-3" />
             Cargando inventario...
           </div>
+        ) : isNoStock ? (
+          /* ── Sin stock view ── */
+          filteredNoStock.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-[#6B7280] dark:text-[#9CA3AF]">
+              <CheckCircle size={40} className="mb-3 text-emerald-400 opacity-60" />
+              <p className="font-medium">Todo en stock</p>
+              <p className="text-sm mt-1">No hay productos sin existencias</p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: '35%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '15%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-[#2C2C2E] bg-[#F9FAFB] dark:bg-[#1E293B]/50">
+                      {['Producto', 'Categoría', 'Unidad', 'Proveedor', 'Estado'].map((h) => (
+                        <th key={h} className="text-left px-4 py-3 text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-[#2C2C2E]">
+                    {filteredNoStock.map((p) => (
+                      <tr key={p.id} className="hover:bg-[#F9FAFB] dark:hover:bg-[#1E293B]/60 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="text-xl flex-shrink-0">{p.image_emoji}</span>
+                            <span className="font-semibold text-[#1B4332] dark:text-[#E5E7EB] truncate" style={{ fontSize: '13px' }}>{p.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-0.5 rounded-full bg-[#F3F4F6] dark:bg-[#2C2C2E] text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '11px', fontWeight: '600' }}>{p.category}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-[#6B7280] dark:text-[#9CA3AF]">{p.unit}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {p.provider_name
+                            ? <span className="flex items-center gap-1 text-[#6B7280] dark:text-[#9CA3AF] truncate" style={{ fontSize: '12px' }}><Building2 size={11} />{p.provider_name}</span>
+                            : <span className="text-[#9CA3AF]" style={{ fontSize: '12px' }}>—</span>
+                          }
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 text-[11px] font-semibold whitespace-nowrap">
+                            <ShoppingBag size={11} /> Sin stock
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Mobile */}
+              <div className="md:hidden divide-y divide-gray-100 dark:divide-[#2C2C2E]">
+                {filteredNoStock.map((p) => (
+                  <div key={p.id} className="p-4 flex items-center gap-3">
+                    <span className="text-2xl flex-shrink-0">{p.image_emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[#1B4332] dark:text-[#E5E7EB] truncate" style={{ fontSize: '14px' }}>{p.name}</p>
+                      <p className="text-[#9CA3AF] mt-0.5" style={{ fontSize: '11px' }}>{p.category} · {p.unit}{p.provider_name ? ` · ${p.provider_name}` : ''}</p>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400 text-[11px] font-semibold whitespace-nowrap flex-shrink-0">
+                      <ShoppingBag size={11} /> Sin stock
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-[#6B7280] dark:text-[#9CA3AF]">
             <Package size={40} className="mb-3 opacity-30" />
