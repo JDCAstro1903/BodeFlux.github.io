@@ -29,12 +29,13 @@ def list_inventory(
     status_filter: Optional[str] = Query(None, alias="status"),
     db: Session = Depends(get_db),
 ):
-    """List inventory items, optionally filtered by status."""
+    """List inventory items, optionally filtered by status. Pass status=all to return every status."""
     query = db.query(InventoryItem)
-    if status_filter:
+    if status_filter and status_filter != 'all':
         query = query.filter(InventoryItem.status == status_filter)
-    else:
+    elif not status_filter:
         query = query.filter(InventoryItem.status == "active")
+    # status_filter == 'all' → no filter applied
     items = query.order_by(InventoryItem.created_at.desc()).all()
     return [InventoryItemResponse.model_validate(i) for i in items]
 
