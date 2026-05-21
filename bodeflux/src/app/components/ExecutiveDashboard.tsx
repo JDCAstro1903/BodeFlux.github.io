@@ -814,9 +814,6 @@ export function ExecutiveDashboard() {
         </ResponsiveContainer>
       </div>
 
-        <div
-          className="rounded-[16px] md:rounded-[20px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl p-3 md:p-5"
-          style={{ boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)' }}
       {/* Advanced Analytics Section */}
       <div
         className="rounded-[20px] md:rounded-[24px] bg-gradient-to-br from-[#1B4332]/10 to-[#0071E3]/5 dark:from-[#34D399]/10 dark:to-[#60A5FA]/5 backdrop-blur-xl p-4 md:p-6 border border-[#1B4332]/10 dark:border-[#34D399]/30"
