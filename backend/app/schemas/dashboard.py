@@ -20,6 +20,9 @@ class KPIResponse(BaseModel):
     response_delta: str
     stock_accuracy: str
     stock_delta: str
+    profit_margin: str
+    profit_margin_delta: str
+    waste_this_month: int
 
 
 class ChartPoint(BaseModel):

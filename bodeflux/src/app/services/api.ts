@@ -353,6 +353,9 @@ export interface KPIsAPI {
   response_delta: string;
   stock_accuracy: string;
   stock_delta: string;
+  profit_margin: string;
+  profit_margin_delta: string;
+  waste_this_month: number;
 }
 
 export interface ChartPointAPI {
@@ -425,6 +428,7 @@ export const dashboardApi = {
   categoriesChart: () => request<ChartPointAPI[]>('/dashboard/charts/categories'),
   revenueChart: () => request<ChartPointAPI[]>('/dashboard/charts/revenue'),
   movementsChart: () => request<ChartPointAPI[]>('/dashboard/charts/movements'),
+  wasteChart: () => request<ChartPointAPI[]>('/dashboard/charts/waste'),
   topProducts: () => request<TopProductAPI[]>('/dashboard/top-products'),
   topProviders: () => request<TopProviderAPI[]>('/dashboard/top-providers'),
 };

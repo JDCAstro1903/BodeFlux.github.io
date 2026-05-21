@@ -13,6 +13,7 @@ from ..services.dashboard_service import (
     get_stock_chart,
     get_top_products,
     get_top_providers,
+    get_waste_chart,
 )
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
@@ -58,3 +59,9 @@ def top_products(db: Session = Depends(get_db)):
 def top_providers(db: Session = Depends(get_db)):
     """Get top-rated providers."""
     return get_top_providers(db)
+
+
+@router.get("/charts/waste", response_model=List[ChartPoint])
+def chart_waste(db: Session = Depends(get_db)):
+    """Get waste quantity and count per month for the last 6 months."""
+    return get_waste_chart(db)

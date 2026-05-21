@@ -1,4 +1,4 @@
-import { TrendingUp, DollarSign, Clock, BarChart3, Download, FileText, PieChart as PieChartIcon, Activity, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Percent, BarChart3, Download, FileText, PieChart as PieChartIcon, Activity, X, Flame } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
 import { useState, useEffect } from 'react';
 import { dashboardApi, type KPIsAPI } from '../services/api';
@@ -8,6 +8,20 @@ import logoSrc from '../../imports/logo.png';
 
 const COLORS = ['#1B4332', '#0071E3', '#10B981', '#F59E0B', '#EF4444'];
 
+/** Renders a coloured trend badge. Pass inverted=true when lower is better (e.g. waste). */
+function DeltaBadge({ delta, inverted = false }: { delta: string; inverted?: boolean }) {
+  const isNeg = delta.startsWith('-');
+  const isBad = inverted ? !isNeg : isNeg;
+  return (
+    <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/20">
+      {isBad
+        ? <TrendingDown size={12} className="md:w-3.5 md:h-3.5" />
+        : <TrendingUp size={12} className="md:w-3.5 md:h-3.5" />}
+      <span className="font-semibold">{delta}</span>
+    </div>
+  );
+}
+
 export function ExecutiveDashboard() {
   const [stockData, setStockData] = useState<{ month: string; stock: number }[]>([]);
   const [categoryData, setCategoryData] = useState<{ category: string; value: number }[]>([]);
@@ -16,6 +30,9 @@ export function ExecutiveDashboard() {
   const [movementData, setMovementData] = useState<{ day: string; entradas: number; salidas: number }[]>([]);
   const [topProducts, setTopProducts] = useState<{ name: string; sales: number; revenue: number }[]>([]);
   const [topProviders, setTopProviders] = useState<{ name: string; rating: number; orders: number; onTime: number }[]>([]);
+  const [wasteData, setWasteData] = useState<{ month: string; quantity: number; count: number }[]>([]);
+
+  const [isLoading, setIsLoading] = useState(true);
 
   const [kpis, setKpis] = useState({
     inventoryValue: '—',
@@ -35,6 +52,9 @@ export function ExecutiveDashboard() {
     responseDelta: '—',
     stockAccuracy: '—',
     stockDelta: '—',
+    profitMargin: '—',
+    profitMarginDelta: '—',
+    wasteThisMonth: '—',
   });
 
   const [pdfModal, setPdfModal] = useState<{ url: string; title: string; filename: string } | null>(null);
@@ -61,8 +81,12 @@ export function ExecutiveDashboard() {
         responseDelta: data.response_delta,
         stockAccuracy: data.stock_accuracy,
         stockDelta: data.stock_delta,
+        profitMargin: data.profit_margin,
+        profitMarginDelta: data.profit_margin_delta,
+        wasteThisMonth: String(data.waste_this_month),
       });
-    }).catch(console.error);
+      setIsLoading(false);
+    }).catch(() => setIsLoading(false));
 
     // Charts
     dashboardApi.stockChart().then((data) => {
@@ -80,6 +104,10 @@ export function ExecutiveDashboard() {
 
     dashboardApi.movementsChart().then((data) => {
       setMovementData(data.map((d) => ({ day: d.label, entradas: d.value, salidas: d.value2 || 0 })));
+    }).catch(console.error);
+
+    dashboardApi.wasteChart().then((data) => {
+      setWasteData(data.map((d) => ({ month: d.label, quantity: d.value, count: d.value2 || 0 })));
     }).catch(console.error);
 
     dashboardApi.topProducts().then((data) => {
@@ -133,10 +161,10 @@ export function ExecutiveDashboard() {
       head: [['Indicador', 'Valor', 'Δ']],
       body: [
         ['Valor Total de Inventario', kpis.inventoryValue, kpis.inventoryDelta],
-        ['Mermas Evitadas', kpis.avoidedWaste, kpis.avoidedWasteDelta],
-        ['Eficiencia del Equipo', kpis.avgResponseTime, kpis.avgResponseDelta],
+        ['Merma este Mes', kpis.avoidedWaste, kpis.avoidedWasteDelta],
+        ['Margen Bruto', kpis.profitMargin, kpis.profitMarginDelta],
         ['Tasa de Rotación', kpis.rotationRate, kpis.rotationDelta],
-        ['Fulfillment', kpis.fulfillment, kpis.fulfillmentDelta],
+        ['Fulfillment de Pedidos', kpis.fulfillment, kpis.fulfillmentDelta],
         ['Precisión de Stock', kpis.stockAccuracy, kpis.stockDelta],
         ['Productos Activos', kpis.activeProducts, ''],
         ['Movimientos Hoy', kpis.movementsToday, ''],
@@ -224,6 +252,58 @@ export function ExecutiveDashboard() {
         columnStyles: { 1: { halign: 'right' } },
         margin: { left: 14, right: 14 },
       });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    }
+
+    // ── Revenue Trend ─────────────────────────────────────────────
+    if (revenueData.length > 0) {
+      if (y > 220) { doc.addPage(); y = 20; }
+      doc.setTextColor(...green);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Tendencia de Ventas vs Costo (6 meses)', 14, y);
+      y += 4;
+
+      autoTable(doc, {
+        startY: y,
+        head: [['Mes', 'Ventas', 'Costo Inventario', 'Margen']],
+        body: revenueData.map((r) => {
+          const margin = r.revenue > 0 ? ((r.revenue - r.expenses) / r.revenue * 100).toFixed(1) + '%' : '—';
+          return [
+            r.month,
+            `$${r.revenue.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
+            `$${r.expenses.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
+            margin,
+          ];
+        }),
+        styles: { fontSize: 9, cellPadding: 2.5 },
+        headStyles: { fillColor: [16, 185, 129] as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [240, 253, 244] },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'center' } },
+        margin: { left: 14, right: 14 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    }
+
+    // ── Waste Trend ───────────────────────────────────────────────
+    if (wasteData.length > 0) {
+      if (y > 220) { doc.addPage(); y = 20; }
+      doc.setTextColor(...green);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Tendencia de Mermas (6 meses)', 14, y);
+      y += 4;
+
+      autoTable(doc, {
+        startY: y,
+        head: [['Mes', 'Cantidad Total', 'N° Registros']],
+        body: wasteData.map((w) => [w.month, String(w.quantity), String(w.count)]),
+        styles: { fontSize: 9, cellPadding: 2.5 },
+        headStyles: { fillColor: [239, 68, 68] as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [255, 241, 242] },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'center' } },
+        margin: { left: 14, right: 14 },
+      });
     }
 
     // Footer on each page
@@ -281,7 +361,7 @@ export function ExecutiveDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
         {/* Total Inventory Value */}
         <div
           className="rounded-[20px] md:rounded-[24px] bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] dark:from-[#34D399] dark:to-[#10B981] p-5 md:p-6 text-white relative overflow-hidden"
@@ -298,63 +378,77 @@ export function ExecutiveDashboard() {
               {kpis.inventoryValue}
             </div>
             <div className="flex items-center gap-2 text-xs md:text-sm text-white/90">
-              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/20">
-                <TrendingUp size={12} className="md:w-3.5 md:h-3.5" />
-                <span className="font-semibold">{kpis.inventoryDelta}</span>
-              </div>
+              <DeltaBadge delta={kpis.inventoryDelta} />
               <span className="text-white/70 text-xs">vs. mes anterior</span>
             </div>
           </div>
           <div className="absolute -right-6 -bottom-6 w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-full" />
         </div>
 
-        {/* Mermas Avoided */}
+        {/* Merma este mes */}
         <div
           className="rounded-[20px] md:rounded-[24px] bg-gradient-to-br from-[#0071E3] to-[#005BB5] dark:from-[#60A5FA] dark:to-[#3B82F6] p-5 md:p-6 text-white relative overflow-hidden"
           style={{ boxShadow: '0 12px 40px rgba(0, 113, 227, 0.25)' }}
         >
           <div className="relative z-10">
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mb-3 md:mb-4">
-              <TrendingUp size={20} className="md:w-6 md:h-6 text-white" />
+              <Flame size={20} className="md:w-6 md:h-6 text-white" />
             </div>
             <div className="text-xs md:text-sm text-white/80 font-medium mb-2">
-              Mermas Evitadas
+              Merma este Mes
             </div>
             <div className="text-3xl md:text-4xl font-bold mb-2">
               {kpis.avoidedWaste}
             </div>
             <div className="flex items-center gap-2 text-xs md:text-sm text-white/90">
-              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/20">
-                <TrendingUp size={12} className="md:w-3.5 md:h-3.5" />
-                <span className="font-semibold">{kpis.avoidedWasteDelta}</span>
-              </div>
-              <span className="text-white/70 text-xs">ahorro anual</span>
+              <DeltaBadge delta={kpis.avoidedWasteDelta} inverted />
+              <span className="text-white/70 text-xs">vs mes anterior</span>
             </div>
           </div>
           <div className="absolute -right-6 -bottom-6 w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-full" />
         </div>
 
-        {/* Team Efficiency */}
+        {/* Fulfillment */}
         <div
           className="rounded-[20px] md:rounded-[24px] bg-gradient-to-br from-[#10B981] to-[#059669] dark:from-[#10B981] dark:to-[#059669] p-5 md:p-6 text-white relative overflow-hidden"
           style={{ boxShadow: '0 12px 40px rgba(16, 185, 129, 0.25)' }}
         >
           <div className="relative z-10">
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mb-3 md:mb-4">
-              <Clock size={20} className="md:w-6 md:h-6 text-white" />
+              <BarChart3 size={20} className="md:w-6 md:h-6 text-white" />
             </div>
             <div className="text-xs md:text-sm text-white/80 font-medium mb-2">
-              Eficiencia del Equipo
+              Fulfillment de Pedidos
             </div>
             <div className="text-3xl md:text-4xl font-bold mb-2">
-              {kpis.avgResponseTime}
+              {kpis.fulfillment}
             </div>
             <div className="flex items-center gap-2 text-xs md:text-sm text-white/90">
-              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/20">
-                <TrendingUp size={12} className="md:w-3.5 md:h-3.5" />
-                <span className="font-semibold">{kpis.avgResponseDelta}</span>
-              </div>
-              <span className="text-white/70 text-xs">tiempo promedio</span>
+              <DeltaBadge delta={kpis.fulfillmentDelta} />
+              <span className="text-white/70 text-xs">vs mes anterior</span>
+            </div>
+          </div>
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-full" />
+        </div>
+
+        {/* Profit Margin */}
+        <div
+          className="rounded-[20px] md:rounded-[24px] bg-gradient-to-br from-[#D97706] to-[#B45309] dark:from-[#FCD34D] dark:to-[#F59E0B] p-5 md:p-6 text-white relative overflow-hidden"
+          style={{ boxShadow: '0 12px 40px rgba(217, 119, 6, 0.25)' }}
+        >
+          <div className="relative z-10">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mb-3 md:mb-4">
+              <Percent size={20} className="md:w-6 md:h-6 text-white" />
+            </div>
+            <div className="text-xs md:text-sm text-white/80 font-medium mb-2">
+              Margen Bruto
+            </div>
+            <div className="text-3xl md:text-4xl font-bold mb-2">
+              {kpis.profitMargin}
+            </div>
+            <div className="flex items-center gap-2 text-xs md:text-sm text-white/90">
+              <DeltaBadge delta={kpis.profitMarginDelta} />
+              <span className="text-white/70 text-xs">vs mes anterior</span>
             </div>
           </div>
           <div className="absolute -right-6 -bottom-6 w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-full" />
@@ -615,7 +709,8 @@ export function ExecutiveDashboard() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
+                label={({ name, percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+                innerRadius={45}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -625,6 +720,7 @@ export function ExecutiveDashboard() {
                 ))}
               </Pie>
               <Tooltip
+                formatter={(value: number, name: string) => [value + ' uds', name]}
                 contentStyle={{
                   backgroundColor: 'rgba(255, 255, 255, 0.95)',
                   border: 'none',
@@ -652,45 +748,75 @@ export function ExecutiveDashboard() {
         </div>
       </div>
 
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-        <div
-          className="rounded-[16px] md:rounded-[20px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl p-3 md:p-5"
-          style={{ boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)' }}
-        >
-          <div className="text-xl md:text-2xl font-bold text-[#1B4332] dark:text-[#34D399] mb-1">
-            {kpis.activeProducts}
+      {/* Waste Trend Chart */}
+      <div
+        className="rounded-[20px] md:rounded-[24px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl p-4 md:p-6"
+        style={{ boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)' }}
+      >
+        <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-[#EF4444] to-[#B91C1C] flex items-center justify-center">
+            <Flame size={16} className="md:w-5 md:h-5 text-white" />
           </div>
-          <div className="text-xs font-medium text-[#6B7280] dark:text-[#CBD5E1]">
-            Productos Activos
-          </div>
-        </div>
-
-        <div
-          className="rounded-[16px] md:rounded-[20px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl p-3 md:p-5"
-          style={{ boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)' }}
-        >
-          <div className="text-xl md:text-2xl font-bold text-[#1B4332] dark:text-[#34D399] mb-1">
-            {kpis.movementsToday}
-          </div>
-          <div className="text-xs font-medium text-[#6B7280] dark:text-[#CBD5E1]">
-            Movimientos Hoy
+          <div>
+            <h3 className="text-base md:text-lg font-semibold text-[#1B4332] dark:text-[#34D399]">
+              Tendencia de Mermas
+            </h3>
+            <p className="text-xs text-[#6B7280] dark:text-[#CBD5E1]">
+              Cantidad de unidades y registros — últimos 6 meses
+            </p>
           </div>
         </div>
 
-        <div
-          className="rounded-[16px] md:rounded-[20px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl p-3 md:p-5"
-          style={{ boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)' }}
-        >
-          <div className="text-xl md:text-2xl font-bold text-[#0071E3] dark:text-[#60A5FA] mb-1">
-            {kpis.activeUsers}
-          </div>
-          <div className="text-xs font-medium text-[#6B7280] dark:text-[#CBD5E1]">
-            Usuarios Activos
-          </div>
-        </div>
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={wasteData}>
+            <defs>
+              <linearGradient id="colorWasteQty" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="colorWasteCount" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(27, 67, 50, 0.1)" />
+            <XAxis dataKey="month" stroke="#6B7280" style={{ fontSize: '12px' }} />
+            <YAxis stroke="#6B7280" style={{ fontSize: '12px' }} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                border: 'none',
+                borderRadius: '12px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+              }}
+            />
+            <Legend />
+            <Area
+              type="monotone"
+              dataKey="quantity"
+              name="Cantidad merma"
+              stroke="#EF4444"
+              strokeWidth={3}
+              fillOpacity={1}
+              fill="url(#colorWasteQty)"
+            />
+            <Area
+              type="monotone"
+              dataKey="count"
+              name="N° registros"
+              stroke="#F59E0B"
+              strokeWidth={2}
+              strokeDasharray="5 3"
+              fillOpacity={1}
+              fill="url(#colorWasteCount)"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
 
+        <div
+          className="rounded-[16px] md:rounded-[20px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl p-3 md:p-5"
+          style={{ boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)' }}
       {/* Advanced Analytics Section */}
       <div
         className="rounded-[20px] md:rounded-[24px] bg-gradient-to-br from-[#1B4332]/10 to-[#0071E3]/5 dark:from-[#34D399]/10 dark:to-[#60A5FA]/5 backdrop-blur-xl p-4 md:p-6 border border-[#1B4332]/10 dark:border-[#34D399]/30"
@@ -709,37 +835,9 @@ export function ExecutiveDashboard() {
             <div className="text-xl md:text-2xl font-bold text-[#1B4332] dark:text-[#34D399] mb-1">
               {kpis.rotationRate}
             </div>
-            <div className="flex items-center gap-1 text-[10px] md:text-xs text-[#10B981]">
-              <TrendingUp size={10} className="md:w-3 md:h-3" />
+            <div className={`flex items-center gap-1 text-[10px] md:text-xs ${kpis.rotationDelta.startsWith('-') ? 'text-[#EF4444]' : 'text-[#10B981]'}`}>
+              {kpis.rotationDelta.startsWith('-') ? <TrendingDown size={10} className="md:w-3 md:h-3" /> : <TrendingUp size={10} className="md:w-3 md:h-3" />}
               {kpis.rotationDelta}
-            </div>
-          </div>
-
-          {/* Order Fulfillment */}
-          <div className="rounded-[12px] md:rounded-[16px] bg-white/60 dark:bg-[#334155]/60 p-3 md:p-4">
-            <div className="text-xs text-[#6B7280] dark:text-[#CBD5E1] mb-2">
-              Cumplimiento de Pedidos
-            </div>
-            <div className="text-xl md:text-2xl font-bold text-[#1B4332] dark:text-[#34D399] mb-1">
-              {kpis.fulfillment}
-            </div>
-            <div className="flex items-center gap-1 text-[10px] md:text-xs text-[#10B981]">
-              <TrendingUp size={10} className="md:w-3 md:h-3" />
-              {kpis.fulfillmentDelta}
-            </div>
-          </div>
-
-          {/* Avg Response Time */}
-          <div className="rounded-[12px] md:rounded-[16px] bg-white/60 dark:bg-[#334155]/60 p-3 md:p-4">
-            <div className="text-xs text-[#6B7280] dark:text-[#CBD5E1] mb-2">
-              Tiempo Respuesta Prom.
-            </div>
-            <div className="text-xl md:text-2xl font-bold text-[#1B4332] dark:text-[#34D399] mb-1">
-              {kpis.responseTime}
-            </div>
-            <div className="flex items-center gap-1 text-[10px] md:text-xs text-[#10B981]">
-              <TrendingUp size={10} className="md:w-3 md:h-3" />
-              {kpis.responseDelta}
             </div>
           </div>
 
@@ -751,9 +849,35 @@ export function ExecutiveDashboard() {
             <div className="text-xl md:text-2xl font-bold text-[#1B4332] dark:text-[#34D399] mb-1">
               {kpis.stockAccuracy}
             </div>
-            <div className="flex items-center gap-1 text-[10px] md:text-xs text-[#10B981]">
-              <TrendingUp size={10} className="md:w-3 md:h-3" />
+            <div className={`flex items-center gap-1 text-[10px] md:text-xs ${kpis.stockDelta.startsWith('-') ? 'text-[#EF4444]' : 'text-[#10B981]'}`}>
+              {kpis.stockDelta.startsWith('-') ? <TrendingDown size={10} className="md:w-3 md:h-3" /> : <TrendingUp size={10} className="md:w-3 md:h-3" />}
               {kpis.stockDelta}
+            </div>
+          </div>
+
+          {/* Productos Activos */}
+          <div className="rounded-[12px] md:rounded-[16px] bg-white/60 dark:bg-[#334155]/60 p-3 md:p-4">
+            <div className="text-xs text-[#6B7280] dark:text-[#CBD5E1] mb-2">
+              Productos Activos
+            </div>
+            <div className="text-xl md:text-2xl font-bold text-[#1B4332] dark:text-[#34D399] mb-1">
+              {kpis.activeProducts}
+            </div>
+            <div className="text-[10px] md:text-xs text-[#6B7280] dark:text-[#CBD5E1]">
+              con stock &gt; 0
+            </div>
+          </div>
+
+          {/* Mermas este mes */}
+          <div className="rounded-[12px] md:rounded-[16px] bg-white/60 dark:bg-[#334155]/60 p-3 md:p-4">
+            <div className="text-xs text-[#6B7280] dark:text-[#CBD5E1] mb-2">
+              Mermas este Mes
+            </div>
+            <div className="text-xl md:text-2xl font-bold text-[#EF4444] dark:text-[#FCA5A5] mb-1">
+              {kpis.wasteThisMonth}
+            </div>
+            <div className="text-[10px] md:text-xs text-[#6B7280] dark:text-[#CBD5E1]">
+              registros
             </div>
           </div>
         </div>
