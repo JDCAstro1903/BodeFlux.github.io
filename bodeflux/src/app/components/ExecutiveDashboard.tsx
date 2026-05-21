@@ -123,98 +123,131 @@ export function ExecutiveDashboard() {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const now = new Date();
     const dateStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-    const green = [27, 67, 50] as [number, number, number];
-    const blue = [0, 113, 227] as [number, number, number];
-    const gray = [107, 114, 128] as [number, number, number];
-    const pageW = doc.internal.pageSize.getWidth();
+    const green   = [27, 67, 50]    as [number, number, number];
+    const blue    = [0, 113, 227]   as [number, number, number];
+    const gray    = [107, 114, 128] as [number, number, number];
+    const emerald = [16, 185, 129]  as [number, number, number];
+    const amber   = [217, 119, 6]   as [number, number, number];
+    const red     = [239, 68, 68]   as [number, number, number];
+    const pageW   = doc.internal.pageSize.getWidth();
+    const marginX = 14;
 
-    // Header band
+    // ── Header band ───────────────────────────────────────────────
     doc.setFillColor(...green);
     doc.rect(0, 0, pageW, 30, 'F');
-
-    // Logo (PNG importado por Vite — ya es data URL en dev y en build)
-    try {
-      doc.addImage(logoSrc, 'PNG', 8, 3, 22, 22);
-    } catch (_) { /* skip if fails */ }
-
-    // Titulo y fecha en el header
+    try { doc.addImage(logoSrc, 'PNG', 8, 3, 22, 22); } catch (_) { /* skip */ }
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('BodeFlux — ' + reportType, 34, 13);
+    doc.text('BodeFlux \u2014 ' + reportType, 34, 13);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text('Generado el ' + dateStr, 34, 22);
-    doc.text('Confidencial', pageW - 14, 22, { align: 'right' });
+    doc.text('Confidencial', pageW - marginX, 22, { align: 'right' });
 
     let y = 38;
 
-    // ── KPIs ──────────────────────────────────────────────────────
-    doc.setTextColor(...green);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Métricas Principales', 14, y);
-    y += 4;
+    // ── Summary snapshot (4 metric boxes) ────────────────────────
+    const boxW = (pageW - marginX * 2 - 6) / 4;
+    const snapshots = [
+      { label: 'Inventario Total', value: kpis.inventoryValue, color: green },
+      { label: 'Margen Bruto',     value: kpis.profitMargin,   color: blue },
+      { label: 'Fulfillment',      value: kpis.fulfillment,    color: emerald },
+      { label: 'Merma este Mes',   value: kpis.avoidedWaste,   color: red },
+    ];
+    snapshots.forEach((box, i) => {
+      const bx = marginX + i * (boxW + 2);
+      doc.setFillColor(...box.color);
+      doc.roundedRect(bx, y, boxW, 18, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text(box.label, bx + boxW / 2, y + 6, { align: 'center' });
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      // truncate long values so they fit
+      const val = box.value.length > 10 ? box.value.substring(0, 10) : box.value;
+      doc.text(val, bx + boxW / 2, y + 14, { align: 'center' });
+    });
+    y += 24;
 
+    // ── Section title helper ──────────────────────────────────────
+    const sectionTitle = (title: string) => {
+      if (y > 252) { doc.addPage(); y = 20; }
+      doc.setTextColor(...green);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, marginX, y);
+      doc.setDrawColor(...green);
+      doc.setLineWidth(0.3);
+      doc.line(marginX, y + 1.5, pageW - marginX, y + 1.5);
+      y += 5;
+    };
+
+    // ── KPIs ─────────────────────────────────────────────────────
+    sectionTitle('M\u00e9tricas Principales');
     autoTable(doc, {
       startY: y,
-      head: [['Indicador', 'Valor', 'Δ']],
+      head: [['Indicador', 'Valor', '\u0394 Variaci\u00f3n']],
       body: [
-        ['Valor Total de Inventario', kpis.inventoryValue, kpis.inventoryDelta],
-        ['Merma este Mes', kpis.avoidedWaste, kpis.avoidedWasteDelta],
-        ['Margen Bruto', kpis.profitMargin, kpis.profitMarginDelta],
-        ['Tasa de Rotación', kpis.rotationRate, kpis.rotationDelta],
-        ['Fulfillment de Pedidos', kpis.fulfillment, kpis.fulfillmentDelta],
-        ['Precisión de Stock', kpis.stockAccuracy, kpis.stockDelta],
-        ['Productos Activos', kpis.activeProducts, ''],
-        ['Movimientos Hoy', kpis.movementsToday, ''],
-        ['Usuarios Activos', kpis.activeUsers, ''],
+        ['Valor Total de Inventario', kpis.inventoryValue,  kpis.inventoryDelta],
+        ['Merma este Mes',            kpis.avoidedWaste,    kpis.avoidedWasteDelta],
+        ['Margen Bruto',              kpis.profitMargin,    kpis.profitMarginDelta],
+        ['Tasa de Rotaci\u00f3n',         kpis.rotationRate,    kpis.rotationDelta],
+        ['Fulfillment de Pedidos',    kpis.fulfillment,     kpis.fulfillmentDelta],
+        ['Precisi\u00f3n de Stock',        kpis.stockAccuracy,   kpis.stockDelta],
+        ['Productos Activos',         kpis.activeProducts,  ''],
+        ['Movimientos Hoy',           kpis.movementsToday,  ''],
+        ['Usuarios Activos',          kpis.activeUsers,     ''],
       ],
       styles: { fontSize: 9, cellPadding: 2.5 },
       headStyles: { fillColor: green, textColor: [255, 255, 255], fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [245, 250, 247] },
-      columnStyles: { 0: { fontStyle: 'bold' }, 2: { textColor: [16, 185, 129] } },
-      margin: { left: 14, right: 14 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 100 },
+        1: { halign: 'right',   cellWidth: 47 },
+        2: { halign: 'center',  cellWidth: 35 },
+      },
+      didParseCell: (data) => {
+        if (data.column.index === 2 && data.section === 'body') {
+          const val = String(data.cell.raw ?? '');
+          if (val.startsWith('+')) data.cell.styles.textColor = [16, 185, 129];
+          else if (val.startsWith('-')) data.cell.styles.textColor = [239, 68, 68];
+        }
+      },
+      margin: { left: marginX, right: marginX },
     });
-
     y = (doc as any).lastAutoTable.finalY + 8;
 
     // ── Top Products ──────────────────────────────────────────────
     if (topProducts.length > 0) {
-      if (y > 230) { doc.addPage(); y = 20; }
-      doc.setTextColor(...green);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Productos Más Vendidos', 14, y);
-      y += 4;
-
+      sectionTitle('Productos M\u00e1s Vendidos');
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Producto', 'Ventas', 'Ingresos']],
+        head: [['#', 'Producto', 'Unidades', 'Ingresos Totales']],
         body: topProducts.map((p, i) => [
           String(i + 1),
           p.name,
-          String(p.sales),
-          `$${Number(p.revenue).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
+          p.sales.toLocaleString('es-MX'),
+          `$${Number(p.revenue).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         ]),
         styles: { fontSize: 9, cellPadding: 2.5 },
         headStyles: { fillColor: blue, textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [240, 247, 255] },
-        columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'right' } },
-        margin: { left: 14, right: 14 },
+        columnStyles: {
+          0: { cellWidth: 10,  halign: 'center' },
+          1: { cellWidth: 100 },
+          2: { cellWidth: 28,  halign: 'right' },
+          3: { cellWidth: 44,  halign: 'right' },
+        },
+        margin: { left: marginX, right: marginX },
       });
       y = (doc as any).lastAutoTable.finalY + 8;
     }
 
     // ── Top Providers ─────────────────────────────────────────────
     if (topProviders.length > 0) {
-      if (y > 220) { doc.addPage(); y = 20; }
-      doc.setTextColor(...green);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Mejores Proveedores', 14, y);
-      y += 4;
-
+      sectionTitle('Mejores Proveedores');
       autoTable(doc, {
         startY: y,
         head: [['Proveedor', 'Rating', 'Pedidos', '% Puntual']],
@@ -225,94 +258,107 @@ export function ExecutiveDashboard() {
           `${p.onTime}%`,
         ]),
         styles: { fontSize: 9, cellPadding: 2.5 },
-        headStyles: { fillColor: [16, 185, 129] as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+        headStyles: { fillColor: emerald, textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [240, 253, 244] },
-        columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' } },
-        margin: { left: 14, right: 14 },
+        columnStyles: {
+          0: { cellWidth: 97 },
+          1: { cellWidth: 27, halign: 'center' },
+          2: { cellWidth: 30, halign: 'center' },
+          3: { cellWidth: 28, halign: 'center' },
+        },
+        margin: { left: marginX, right: marginX },
       });
       y = (doc as any).lastAutoTable.finalY + 8;
     }
 
     // ── Category Distribution ─────────────────────────────────────
     if (categoryData.length > 0) {
-      if (y > 220) { doc.addPage(); y = 20; }
-      doc.setTextColor(...green);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Distribución por Categoría', 14, y);
-      y += 4;
-
+      sectionTitle('Distribuci\u00f3n por Categor\u00eda');
       autoTable(doc, {
         startY: y,
-        head: [['Categoría', 'Cantidad']],
-        body: categoryData.map((c) => [c.category, String(c.value)]),
+        head: [['Categor\u00eda', 'Unidades en Stock']],
+        body: categoryData.map((c) => [c.category, Math.round(c.value).toLocaleString('es-MX')]),
         styles: { fontSize: 9, cellPadding: 2.5 },
-        headStyles: { fillColor: [245, 158, 11] as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+        headStyles: { fillColor: amber, textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [255, 251, 235] },
-        columnStyles: { 1: { halign: 'right' } },
-        margin: { left: 14, right: 14 },
+        columnStyles: {
+          0: { cellWidth: 140 },
+          1: { cellWidth: 42, halign: 'right' },
+        },
+        margin: { left: marginX, right: marginX },
       });
       y = (doc as any).lastAutoTable.finalY + 8;
     }
 
     // ── Revenue Trend ─────────────────────────────────────────────
     if (revenueData.length > 0) {
-      if (y > 220) { doc.addPage(); y = 20; }
-      doc.setTextColor(...green);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Tendencia de Ventas vs Costo (6 meses)', 14, y);
-      y += 4;
-
+      sectionTitle('Tendencia de Ventas vs Costo (6 meses)');
       autoTable(doc, {
         startY: y,
         head: [['Mes', 'Ventas', 'Costo Inventario', 'Margen']],
         body: revenueData.map((r) => {
-          const margin = r.revenue > 0 ? ((r.revenue - r.expenses) / r.revenue * 100).toFixed(1) + '%' : '—';
+          const margin = r.revenue > 0
+            ? ((r.revenue - r.expenses) / r.revenue * 100).toFixed(1) + '%'
+            : 'N/A';
           return [
             r.month,
-            `$${r.revenue.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
-            `$${r.expenses.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
+            `$${r.revenue.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            r.expenses > 0
+              ? `$${r.expenses.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : '\u2014',
             margin,
           ];
         }),
         styles: { fontSize: 9, cellPadding: 2.5 },
-        headStyles: { fillColor: [16, 185, 129] as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+        headStyles: { fillColor: emerald, textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [240, 253, 244] },
-        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'center' } },
-        margin: { left: 14, right: 14 },
+        columnStyles: {
+          0: { cellWidth: 18, halign: 'center' },
+          1: { cellWidth: 55, halign: 'right' },
+          2: { cellWidth: 62, halign: 'right' },
+          3: { cellWidth: 47, halign: 'center' },
+        },
+        margin: { left: marginX, right: marginX },
       });
       y = (doc as any).lastAutoTable.finalY + 8;
     }
 
     // ── Waste Trend ───────────────────────────────────────────────
     if (wasteData.length > 0) {
-      if (y > 220) { doc.addPage(); y = 20; }
-      doc.setTextColor(...green);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Tendencia de Mermas (6 meses)', 14, y);
-      y += 4;
-
+      sectionTitle('Tendencia de Mermas (6 meses)');
       autoTable(doc, {
         startY: y,
-        head: [['Mes', 'Cantidad Total', 'N° Registros']],
-        body: wasteData.map((w) => [w.month, String(w.quantity), String(w.count)]),
+        head: [['Mes', 'Cantidad Total', 'N\u00ba Registros']],
+        body: wasteData.map((w) => [
+          w.month,
+          w.quantity.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          String(Math.round(w.count)),
+        ]),
         styles: { fontSize: 9, cellPadding: 2.5 },
-        headStyles: { fillColor: [239, 68, 68] as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+        headStyles: { fillColor: red, textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [255, 241, 242] },
-        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'center' } },
-        margin: { left: 14, right: 14 },
+        columnStyles: {
+          0: { cellWidth: 18,  halign: 'center' },
+          1: { cellWidth: 120, halign: 'right' },
+          2: { cellWidth: 44,  halign: 'center' },
+        },
+        margin: { left: marginX, right: marginX },
       });
     }
 
-    // Footer on each page
+    // ── Footer on every page ──────────────────────────────────────
     const totalPages = (doc.internal as any).getNumberOfPages();
+    const pageH = doc.internal.pageSize.getHeight();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
+      doc.setDrawColor(...gray);
+      doc.setLineWidth(0.2);
+      doc.line(marginX, pageH - 12, pageW - marginX, pageH - 12);
       doc.setFontSize(8);
       doc.setTextColor(...gray);
-      doc.text(`BodeFlux — ${reportType} — Pág. ${i} / ${totalPages}`, pageW / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' });
+      doc.text(`BodeFlux \u2014 ${reportType}`, marginX, pageH - 7);
+      doc.text(dateStr, pageW / 2, pageH - 7, { align: 'center' });
+      doc.text(`P\u00e1g. ${i} / ${totalPages}`, pageW - marginX, pageH - 7, { align: 'right' });
     }
 
     const blobUrl = doc.output('bloburl') as string;

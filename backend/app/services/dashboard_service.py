@@ -341,7 +341,7 @@ def get_waste_chart(db: Session) -> List[dict]:
         )
         result.append({
             "label": MONTH_ES[first.month - 1],
-            "value": float(total_qty),
+            "value": round(float(total_qty), 2),
             "value2": float(count),
         })
     return result
