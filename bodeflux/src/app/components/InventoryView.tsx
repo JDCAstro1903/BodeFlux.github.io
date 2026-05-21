@@ -4,14 +4,14 @@ import { inventoryApi, productApi, type InventoryItemAPI, type ProductAPI } from
 
 const CATEGORIES = ['Todos', 'Fertilizantes', 'Semillas', 'Pesticidas', 'Herbicidas', 'Otros'];
 
-type StatusTab = 'active' | 'output' | 'waste' | 'all' | 'nostock';
+// Inventory = current stock snapshot. Salidas/Mermas live in Movimientos (event log).
+type StatusTab = 'active' | 'expiring' | 'nostock' | 'all';
 
 const STATUS_TABS: { value: StatusTab; label: string }[] = [
   { value: 'active', label: 'Activos' },
-  { value: 'output', label: 'Salidas' },
-  { value: 'waste', label: 'Mermas' },
-  { value: 'all', label: 'Todos' },
+  { value: 'expiring', label: 'Por vencer' },
   { value: 'nostock', label: 'Sin stock' },
+  { value: 'all', label: 'Todos' },
 ];
 
 function expiryInfo(dateStr: string) {
@@ -77,7 +77,11 @@ export function InventoryView() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return allItems.filter((item) => {
-      const matchStatus = statusTab === 'all' || statusTab === 'nostock' || item.status === statusTab;
+      let matchStatus = true;
+      if (statusTab === 'active') matchStatus = item.status === 'active';
+      else if (statusTab === 'expiring') matchStatus = item.status === 'active' && expiryInfo(item.expiry_date).days <= 30;
+      else if (statusTab === 'all') matchStatus = true;
+      // 'nostock' is handled separately via filteredNoStock
       const matchSearch = !q ||
         item.product_name.toLowerCase().includes(q) ||
         item.lot_number.toLowerCase().includes(q) ||
@@ -107,7 +111,9 @@ export function InventoryView() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#1B4332] dark:text-[#34D399]">Inventario</h1>
-          <p className="text-sm text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">{displayCount} registro{displayCount !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">
+            {isNoStock ? `${displayCount} producto${displayCount !== 1 ? 's' : ''} sin existencias` : `${displayCount} lote${displayCount !== 1 ? 's' : ''} · estado actual del stock`}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Status tabs */}
@@ -143,13 +149,13 @@ export function InventoryView() {
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{activeItems.length}</p>
           <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">Lotes activos</p>
         </button>
-        <button onClick={() => setStatusTab('active')} className="rounded-[16px] bg-red-50 dark:bg-red-900/20 p-4 text-left hover:brightness-95 transition-all" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <p className="text-2xl font-bold text-red-600 dark:text-red-400">{expiredCount}</p>
-          <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">Vencidos</p>
-        </button>
-        <button onClick={() => setStatusTab('active')} className="rounded-[16px] bg-orange-50 dark:bg-orange-900/20 p-4 text-left hover:brightness-95 transition-all" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <button onClick={() => setStatusTab('expiring')} className={`rounded-[16px] bg-orange-50 dark:bg-orange-900/20 p-4 text-left transition-all ${statusTab === 'expiring' ? 'ring-2 ring-orange-400' : 'hover:brightness-95'}`} style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <p className="text-2xl font-bold text-orange-500 dark:text-orange-400">{soonCount}</p>
           <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">Por vencer (30d)</p>
+        </button>
+        <button onClick={() => setStatusTab('expiring')} className="rounded-[16px] bg-red-50 dark:bg-red-900/20 p-4 text-left hover:brightness-95 transition-all" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">{expiredCount}</p>
+          <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">Vencidos</p>
         </button>
         <button onClick={() => setStatusTab('nostock')} className={`rounded-[16px] bg-gray-100 dark:bg-gray-800/40 p-4 text-left transition-all ${statusTab === 'nostock' ? 'ring-2 ring-gray-400' : 'hover:brightness-95'}`} style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <p className="text-2xl font-bold text-gray-500 dark:text-gray-400">{outOfStockProducts.length}</p>
@@ -157,7 +163,8 @@ export function InventoryView() {
         </button>
       </div>
 
-      {/* Search + Category filter */}
+      {/* Search + Category filter — hidden on nostock tab */}
+      {!isNoStock && (
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
@@ -185,6 +192,7 @@ export function InventoryView() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Table */}
       <div className="rounded-[20px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl overflow-hidden" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
