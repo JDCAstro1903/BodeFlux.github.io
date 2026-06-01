@@ -11,7 +11,11 @@ import {
   FileText,
   Hash,
   Clock,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+
+const PAGE_SIZE = 20;
 import { inventoryApi, type InventoryMovementAPI } from '../services/api';
 
 type FilterType = 'all' | 'entry' | 'output' | 'waste';
@@ -87,6 +91,7 @@ export function InventoryMovements() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
 
   const loadMovements = async () => {
     setLoading(true);
@@ -115,6 +120,12 @@ export function InventoryMovements() {
       return matchType && matchSearch;
     });
   }, [movements, filter, search]);
+
+  // Reset page on filter change
+  useEffect(() => { setPage(1); }, [search, filter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedItems = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
 
   const entryCount  = movements.filter((m) => m.movement_type === 'entry').length;
   const outputCount = movements.filter((m) => m.movement_type === 'output').length;
@@ -175,6 +186,7 @@ export function InventoryMovements() {
 
       <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF]">
         {filtered.length} evento{filtered.length !== 1 ? 's' : ''}
+        {filtered.length > PAGE_SIZE && ` · página ${page} de ${totalPages}`}
       </p>
 
       {/* Content */}
@@ -211,7 +223,7 @@ export function InventoryMovements() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-[#2C2C2E]">
-                {filtered.map((m, idx) => (
+                {pagedItems.map((m, idx) => (
                   <tr
                     key={m.id}
                     className={`transition-colors ${idx % 2 === 0 ? '' : 'bg-gray-50/50 dark:bg-white/[0.02]'} hover:bg-[#1B4332]/5 dark:hover:bg-[#34D399]/5`}
@@ -249,7 +261,7 @@ export function InventoryMovements() {
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
-            {filtered.map((m) => (
+            {pagedItems.map((m) => (
               <div
                 key={m.id}
                 className="rounded-[16px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl border border-white/50 dark:border-[#34D399]/20 p-4"
@@ -291,6 +303,55 @@ export function InventoryMovements() {
               </div>
             ))}
           </div>
+
+          {/* Pagination */}
+          {filtered.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-3 mt-2 rounded-[16px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl border border-white/50 dark:border-[#34D399]/20">
+              <span className="text-xs text-[#6B7280] dark:text-[#9CA3AF]">
+                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} de {filtered.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="w-8 h-8 rounded-[8px] flex items-center justify-center text-[#6B7280] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#2C2C2E] disabled:opacity-30 transition-all"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                  .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...');
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, idx) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-1 text-xs text-[#9CA3AF]">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p as number)}
+                        className={`w-8 h-8 rounded-[8px] text-xs font-semibold transition-all ${
+                          page === p
+                            ? 'bg-[#1B4332] dark:bg-[#34D399] text-white dark:text-[#0F172A]'
+                            : 'text-[#6B7280] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#2C2C2E]'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="w-8 h-8 rounded-[8px] flex items-center justify-center text-[#6B7280] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#2C2C2E] disabled:opacity-30 transition-all"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
