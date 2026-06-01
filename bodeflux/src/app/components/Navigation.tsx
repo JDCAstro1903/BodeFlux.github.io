@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Home, Package, AlertTriangle, BarChart3, ShoppingCart, Warehouse, ClipboardList, LogOut, MoreHorizontal, ArrowLeftRight } from 'lucide-react';
+import { Home, Package, AlertTriangle, BarChart3, ShoppingCart, Warehouse, ClipboardList, LogOut, MoreHorizontal, ArrowLeftRight, Users } from 'lucide-react';
 import logoImg from '../../imports/logo.png';
 import { Link, useLocation } from 'react-router';
 import { UserProfile } from './UserProfile';
@@ -51,6 +51,7 @@ export function Navigation({ userRole, onLogout }: NavigationProps) {
           { path: '/alerts', icon: AlertTriangle, label: 'Semáforo' },
           { path: '/sales', icon: ShoppingCart, label: 'Ventas' },
           { path: '/orders', icon: ClipboardList, label: 'Pedidos' },
+          { path: '/users', icon: Users, label: 'Usuarios' },
         ];
       default:
         return [];

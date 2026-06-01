@@ -1,8 +1,9 @@
-﻿import { Package, Search, MapPin, AlertTriangle, CheckCircle, TrendingDown, XCircle, RefreshCw, Hash, Building2, ShoppingBag } from 'lucide-react';
+﻿import { Package, Search, MapPin, AlertTriangle, CheckCircle, TrendingDown, XCircle, RefreshCw, Hash, Building2, ShoppingBag, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { inventoryApi, productApi, type InventoryItemAPI, type ProductAPI } from '../services/api';
 
 const CATEGORIES = ['Todos', 'Fertilizantes', 'Semillas', 'Pesticidas', 'Herbicidas', 'Otros'];
+const PAGE_SIZE = 20;
 
 // Inventory = current stock snapshot. Salidas/Mermas live in Movimientos (event log).
 type StatusTab = 'active' | 'expiring' | 'nostock' | 'all';
@@ -48,6 +49,7 @@ export function InventoryView() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [statusTab, setStatusTab] = useState<StatusTab>('active');
+  const [page, setPage] = useState(1);
 
   const loadItems = async () => {
     setLoading(true);
@@ -102,8 +104,16 @@ export function InventoryView() {
     );
   }, [outOfStockProducts, search]);
 
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPage(1); }, [search, categoryFilter, statusTab]);
+
   const isNoStock = statusTab === 'nostock';
   const displayCount = isNoStock ? filteredNoStock.length : filtered.length;
+
+  // Paginated slices
+  const totalPages = Math.max(1, Math.ceil((isNoStock ? filteredNoStock.length : filtered.length) / PAGE_SIZE));
+  const pagedItems = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
+  const pagedNoStock = useMemo(() => filteredNoStock.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredNoStock, page]);
 
   return (
     <div className="space-y-5">
@@ -231,7 +241,7 @@ export function InventoryView() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-[#2C2C2E]">
-                    {filteredNoStock.map((p) => (
+                    {pagedNoStock.map((p) => (
                       <tr key={p.id} className="hover:bg-[#F9FAFB] dark:hover:bg-[#1E293B]/60 transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -263,7 +273,7 @@ export function InventoryView() {
               </div>
               {/* Mobile */}
               <div className="md:hidden divide-y divide-gray-100 dark:divide-[#2C2C2E]">
-                {filteredNoStock.map((p) => (
+                {pagedNoStock.map((p) => (
                   <div key={p.id} className="p-4 flex items-center gap-3">
                     <span className="text-2xl flex-shrink-0">{p.image_emoji}</span>
                     <div className="flex-1 min-w-0">
@@ -307,7 +317,7 @@ export function InventoryView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-[#2C2C2E]">
-                  {filtered.map((item) => (
+                  {pagedItems.map((item) => (
                     <tr key={item.id} className="hover:bg-[#F9FAFB] dark:hover:bg-[#1E293B]/60 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -356,7 +366,7 @@ export function InventoryView() {
 
             {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-gray-100 dark:divide-[#2C2C2E]">
-              {filtered.map((item) => (
+              {pagedItems.map((item) => (
                 <div key={item.id} className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0 pr-3">
@@ -378,6 +388,55 @@ export function InventoryView() {
               ))}
             </div>
           </>
+        )}
+
+        {/* Pagination bar */}
+        {!loading && displayCount > 0 && totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-[#2C2C2E]">
+            <span className="text-xs text-[#6B7280] dark:text-[#9CA3AF]">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, displayCount)} de {displayCount}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="w-8 h-8 rounded-[8px] flex items-center justify-center text-[#6B7280] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#2C2C2E] disabled:opacity-30 transition-all"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx) =>
+                  p === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-1 text-xs text-[#9CA3AF]">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p as number)}
+                      className={`w-8 h-8 rounded-[8px] text-xs font-semibold transition-all ${
+                        page === p
+                          ? 'bg-[#1B4332] dark:bg-[#34D399] text-white dark:text-[#0F172A]'
+                          : 'text-[#6B7280] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#2C2C2E]'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="w-8 h-8 rounded-[8px] flex items-center justify-center text-[#6B7280] dark:text-[#9CA3AF] hover:bg-[#F3F4F6] dark:hover:bg-[#2C2C2E] disabled:opacity-30 transition-all"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

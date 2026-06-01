@@ -422,6 +422,31 @@ export const providerOrderApi = {
     request<void>(`/provider-orders/${id}`, { method: 'DELETE' }),
 };
 
+// =====================
+// USERS (admin)
+// =====================
+export interface UserCreatePayload {
+  name: string;
+  employee_id: string;
+  email?: string;
+  role: 'warehouse' | 'sales';
+  password: string;
+}
+
+export const usersApi = {
+  list: () => request<UserData[]>('/users/'),
+  create: (payload: UserCreatePayload) =>
+    request<UserData>('/users/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number, payload: { is_active: boolean }) =>
+    request<UserData>(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+};
+
 export const dashboardApi = {
   kpis: () => request<KPIsAPI>('/dashboard/kpis'),
   stockChart: () => request<ChartPointAPI[]>('/dashboard/charts/stock'),
