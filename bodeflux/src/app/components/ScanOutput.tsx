@@ -1,5 +1,5 @@
-import { X, Package, Hash, Weight, TrendingDown, LogOut } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { X, Package, Hash, Weight, TrendingDown, LogOut, Search } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { inventoryApi, type InventoryItemAPI } from '../services/api';
 
@@ -24,6 +24,9 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
   const isDark = theme === 'dark';
 
   const [inventoryItems, setInventoryItems] = useState<InventoryItemAPI[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const productDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -31,13 +34,26 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (productDropdownRef.current && !productDropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const handleItemChange = (itemId: string) => {
     const item = inventoryItems.find((i) => String(i.id) === itemId);
     if (item) {
       setFormData({ ...formData, inventoryItemId: item.id, productName: item.product_name, unit: item.unit, lotNumber: item.lot_number });
+      setProductSearch(`${item.product_name} — ${item.lot_number}`);
     } else {
       setFormData({ ...formData, inventoryItemId: 0, productName: '', unit: 'kg', lotNumber: '' });
+      setProductSearch('');
     }
+    setShowDropdown(false);
   };
 
   const [formData, setFormData] = useState<OutputData>({
@@ -52,6 +68,7 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.inventoryItemId) return;
     onSubmit(formData);
     setFormData({
       inventoryItemId: 0,
@@ -62,6 +79,8 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
       destination: '',
       outputDate: new Date().toISOString().split('T')[0],
     });
+    setProductSearch('');
+    setShowDropdown(false);
     onClose();
   };
 
@@ -135,20 +154,62 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
                   <Package size={16} />
                   Producto / Lote
                 </label>
-                <select
-                  required
-                  value={inventoryItems.find((i) => i.lot_number === formData.lotNumber)?.id?.toString() ?? ''}
-                  onChange={(e) => handleItemChange(e.target.value)}
-                  className="w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C] transition-all"
-                  style={{ fontSize: '14px' }}
-                >
-                  <option value="">Seleccionar lote del inventario</option>
-                  {inventoryItems.map((item) => (
-                    <option key={item.id} value={String(item.id)}>
-                      {item.product_name} — {item.lot_number} ({item.quantity} {item.unit})
-                    </option>
-                  ))}
-                </select>
+                <div ref={productDropdownRef} className="relative">
+                  <div className="relative">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none" />
+                    <input
+                      type="text"
+                      value={productSearch}
+                      onChange={(e) => {
+                        setProductSearch(e.target.value);
+                        setShowDropdown(true);
+                        if (formData.inventoryItemId > 0) {
+                          setFormData({ ...formData, inventoryItemId: 0, productName: '', unit: 'kg', lotNumber: '' });
+                        }
+                      }}
+                      onFocus={() => setShowDropdown(true)}
+                      placeholder="Buscar producto o número de lote…"
+                      className="w-full pl-9 pr-8 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] dark:text-white dark:placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C] transition-all"
+                      style={{ fontSize: '14px' }}
+                    />
+                    {formData.inventoryItemId > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleItemChange('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  {showDropdown && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1.5 max-h-52 overflow-y-auto rounded-[14px] bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] shadow-xl">
+                      {inventoryItems.filter((item) => {
+                        const q = productSearch.toLowerCase();
+                        return !q || item.product_name.toLowerCase().includes(q) || item.lot_number.toLowerCase().includes(q);
+                      }).length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-[#9CA3AF] text-center">Sin resultados</div>
+                      ) : (
+                        inventoryItems
+                          .filter((item) => {
+                            const q = productSearch.toLowerCase();
+                            return !q || item.product_name.toLowerCase().includes(q) || item.lot_number.toLowerCase().includes(q);
+                          })
+                          .map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => handleItemChange(String(item.id))}
+                              className={`w-full px-4 py-2.5 text-left hover:bg-[#F3F4F6] dark:hover:bg-[#3A3A3C] transition-colors first:rounded-t-[14px] last:rounded-b-[14px] ${formData.inventoryItemId === item.id ? 'bg-[#0071E3]/10 dark:bg-[#0071E3]/20' : ''}`}
+                            >
+                              <div className="text-sm font-medium text-[#1D1D1F] dark:text-[#F5F5F7]">{item.product_name}</div>
+                              <div className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-0.5">{item.lot_number} · {item.quantity} {item.unit}</div>
+                            </button>
+                          ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Lot Number (from scan) */}
