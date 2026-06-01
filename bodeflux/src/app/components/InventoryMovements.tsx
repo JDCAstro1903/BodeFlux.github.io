@@ -13,7 +13,11 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  FileSpreadsheet,
+  CalendarRange,
+  X,
 } from 'lucide-react';
+import { exportMovementsToExcel } from '../utils/exportExcel';
 
 const PAGE_SIZE = 20;
 import { inventoryApi, type InventoryMovementAPI } from '../services/api';
@@ -92,6 +96,8 @@ export function InventoryMovements() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo]   = useState('');
 
   const loadMovements = async () => {
     setLoading(true);
@@ -109,6 +115,9 @@ export function InventoryMovements() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
+    const from = dateFrom ? new Date(dateFrom).getTime() : null;
+    // dateTo: include the full day by setting to 23:59:59
+    const to   = dateTo   ? new Date(dateTo + 'T23:59:59').getTime() : null;
     return movements.filter((m) => {
       const matchType = filter === 'all' || m.movement_type === filter;
       const matchSearch =
@@ -117,12 +126,16 @@ export function InventoryMovements() {
         (m.lot_number ?? '').toLowerCase().includes(q) ||
         (m.destination ?? '').toLowerCase().includes(q) ||
         (m.user_name ?? '').toLowerCase().includes(q);
-      return matchType && matchSearch;
+      const ts = m.created_at ? new Date(m.created_at).getTime() : null;
+      const matchDate =
+        (!from || (ts !== null && ts >= from)) &&
+        (!to   || (ts !== null && ts <= to));
+      return matchType && matchSearch && matchDate;
     });
-  }, [movements, filter, search]);
+  }, [movements, filter, search, dateFrom, dateTo]);
 
   // Reset page on filter change
-  useEffect(() => { setPage(1); }, [search, filter]);
+  useEffect(() => { setPage(1); }, [search, filter, dateFrom, dateTo]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pagedItems = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
@@ -154,33 +167,74 @@ export function InventoryMovements() {
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Actualizar
         </button>
+        <button
+          onClick={() => exportMovementsToExcel(filtered, dateFrom || null, dateTo || null)}
+          disabled={loading || filtered.length === 0}
+          className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium shadow-sm hover:shadow-md transition-all disabled:opacity-40"
+        >
+          <FileSpreadsheet size={14} />
+          Excel
+        </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280] dark:text-[#9CA3AF]" />
+      {/* Date range + Search + Type filter */}
+      <div className="flex flex-col gap-3">
+        {/* Date range row */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl border border-white/50 dark:border-[#34D399]/20 text-xs text-[#6B7280] dark:text-[#9CA3AF]">
+            <CalendarRange size={14} className="flex-shrink-0" />
+            <span className="hidden sm:inline font-medium">Rango:</span>
+          </div>
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar producto, lote, destino, usuario…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-[12px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl border border-white/50 dark:border-[#34D399]/20 text-sm text-[#1D1D1F] dark:text-[#F5F5F7] placeholder-[#9CA3AF] outline-none focus:ring-2 focus:ring-[#1B4332]/30 dark:focus:ring-[#34D399]/30"
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="px-3 py-2 rounded-[12px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl border border-white/50 dark:border-[#34D399]/20 text-sm text-[#1D1D1F] dark:text-[#F5F5F7] outline-none focus:ring-2 focus:ring-[#1B4332]/30 dark:focus:ring-[#34D399]/30 cursor-pointer"
           />
-        </div>
-        <div className="flex gap-1 p-1 rounded-[12px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl border border-white/50 dark:border-[#34D399]/20">
-          {FILTER_TABS.map((tab) => (
+          <span className="text-xs text-[#9CA3AF]">—</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="px-3 py-2 rounded-[12px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl border border-white/50 dark:border-[#34D399]/20 text-sm text-[#1D1D1F] dark:text-[#F5F5F7] outline-none focus:ring-2 focus:ring-[#1B4332]/30 dark:focus:ring-[#34D399]/30 cursor-pointer"
+          />
+          {(dateFrom || dateTo) && (
             <button
-              key={tab.value}
-              onClick={() => setFilter(tab.value)}
-              className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all whitespace-nowrap ${
-                filter === tab.value
-                  ? 'bg-[#1B4332] dark:bg-[#34D399] text-white dark:text-[#0F172A] shadow-sm'
-                  : `${tab.color || 'text-[#6B7280] dark:text-[#9CA3AF]'} hover:opacity-80`
-              }`}
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="flex items-center gap-1 px-2.5 py-2 rounded-[10px] bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 text-xs font-medium hover:bg-red-100 dark:hover:bg-red-900/40 transition-all"
             >
-              {tab.label}
+              <X size={12} /> Limpiar
             </button>
-          ))}
+          )}
+        </div>
+
+        {/* Search + type filter row */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280] dark:text-[#9CA3AF]" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar producto, lote, destino, usuario…"
+              className="w-full pl-9 pr-4 py-2.5 rounded-[12px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl border border-white/50 dark:border-[#34D399]/20 text-sm text-[#1D1D1F] dark:text-[#F5F5F7] placeholder-[#9CA3AF] outline-none focus:ring-2 focus:ring-[#1B4332]/30 dark:focus:ring-[#34D399]/30"
+            />
+          </div>
+          <div className="flex gap-1 p-1 rounded-[12px] bg-white/75 dark:bg-[#1E293B]/75 backdrop-blur-xl border border-white/50 dark:border-[#34D399]/20">
+            {FILTER_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setFilter(tab.value)}
+                className={`px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all whitespace-nowrap ${
+                  filter === tab.value
+                    ? 'bg-[#1B4332] dark:bg-[#34D399] text-white dark:text-[#0F172A] shadow-sm'
+                    : `${tab.color || 'text-[#6B7280] dark:text-[#9CA3AF]'} hover:opacity-80`
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

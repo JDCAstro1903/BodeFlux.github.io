@@ -1,6 +1,7 @@
-﻿import { Package, Search, MapPin, AlertTriangle, CheckCircle, TrendingDown, XCircle, RefreshCw, Hash, Building2, ShoppingBag, ChevronLeft, ChevronRight } from 'lucide-react';
+﻿import { Package, Search, MapPin, AlertTriangle, CheckCircle, TrendingDown, XCircle, RefreshCw, Hash, Building2, ShoppingBag, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { inventoryApi, productApi, type InventoryItemAPI, type ProductAPI } from '../services/api';
+import { exportInventoryToExcel } from '../utils/exportExcel';
 
 const CATEGORIES = ['Todos', 'Fertilizantes', 'Semillas', 'Pesticidas', 'Herbicidas', 'Otros'];
 const PAGE_SIZE = 20;
@@ -149,6 +150,14 @@ export function InventoryView() {
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Actualizar
+          </button>
+          <button
+            onClick={() => exportInventoryToExcel(allItems, products)}
+            disabled={loading || allItems.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-[12px] bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium shadow-sm hover:shadow-md transition-all disabled:opacity-40"
+          >
+            <FileSpreadsheet size={14} />
+            Excel
           </button>
         </div>
       </div>
