@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..database import get_db
 from ..models.product import Product
@@ -27,7 +27,7 @@ def list_products(
     db: Session = Depends(get_db),
 ):
     """List products with optional filters."""
-    query = db.query(Product)
+    query = db.query(Product).options(joinedload(Product.presentations))
     if category:
         query = query.filter(Product.category == category)
     if search:
@@ -41,7 +41,7 @@ def list_products(
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     """Get a single product."""
-    product = db.query(Product).filter(Product.id == product_id).first()
+    product = db.query(Product).options(joinedload(Product.presentations)).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return ProductResponse.model_validate(product)

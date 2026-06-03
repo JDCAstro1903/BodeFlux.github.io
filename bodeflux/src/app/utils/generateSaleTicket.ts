@@ -126,6 +126,14 @@ export function generateSaleTicket(sale: SaleResponseAPI): void {
   doc.text(`$${sale.subtotal.toFixed(2)}`, col4, y, { align: 'right' });
   y += 5;
 
+  if (sale.discount_amount && sale.discount_amount > 0) {
+    doc.setTextColor(16, 185, 129);
+    doc.text(`Desc. ${sale.discount_type === 'percentage' ? '(' + sale.discount_value + '%)' : ''}:`, totalsX, y);
+    doc.text(`-$${sale.discount_amount.toFixed(2)}`, col4, y, { align: 'right' });
+    y += 5;
+    doc.setTextColor(90, 90, 90);
+  }
+
   doc.text('IVA (16%):', totalsX, y);
   doc.text(`$${sale.tax.toFixed(2)}`, col4, y, { align: 'right' });
   y += 5;

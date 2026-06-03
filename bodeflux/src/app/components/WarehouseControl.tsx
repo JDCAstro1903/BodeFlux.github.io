@@ -29,12 +29,10 @@ export function WarehouseControl() {
       inventoryId: i.id,
     }));
 
-  // Occupied locations derived from backend locations API
-  const occupiedLocations = new Set(
-    locations
-      .filter((l) => l.is_occupied)
-      .map((l) => l.location)
-  );
+  const gridLocations = [...locations].sort((a, b) => {
+    if (a.row_label !== b.row_label) return a.row_label.localeCompare(b.row_label);
+    return a.col_number - b.col_number;
+  });
 
   const handleEntrySubmit = async (entry: EntryData) => {
     try {
@@ -230,22 +228,23 @@ export function WarehouseControl() {
           </span>
         </div>
 
-        {/* Simplified Map Grid */}
-        <div className="grid grid-cols-3 gap-2 md:gap-3">
-          {['A-1', 'A-2', 'A-3', 'B-1', 'B-2', 'B-3', 'C-1', 'C-2', 'C-3'].map((location) => {
-            const isOccupied = occupiedLocations.has(location);
+        <div className="grid grid-cols-5 gap-2 md:gap-3">
+          {gridLocations.map((loc) => {
             return (
               <div
-                key={location}
+                key={loc.code}
+                title={loc.products.map(p => `${p.product_name} (${p.quantity}${p.unit})`).join('\n')}
                 className={`rounded-[12px] md:rounded-[16px] p-2 md:p-4 text-center transition-all hover:scale-105 cursor-pointer ${
-                  isOccupied
-                    ? 'bg-gradient-to-br from-[#1B4332]/20 to-[#0071E3]/20 dark:from-[#10B981]/20 dark:to-[#3B82F6]/20 border-2 border-[#0071E3]/50 dark:border-[#3B82F6]/50'
-                    : 'bg-white/50 dark:bg-[#334155]/50 border border-gray-200 dark:border-gray-600'
+                  loc.status === 'empty'
+                    ? 'bg-white/50 dark:bg-[#334155]/50 border border-gray-200 dark:border-gray-600'
+                    : loc.status === 'full'
+                    ? 'bg-gradient-to-br from-[#EF4444]/20 to-[#DC2626]/20 border-2 border-[#DC2626]/50 dark:border-[#EF4444]/50'
+                    : 'bg-gradient-to-br from-[#1B4332]/20 to-[#0071E3]/20 dark:from-[#10B981]/20 dark:to-[#3B82F6]/20 border-2 border-[#0071E3]/50 dark:border-[#3B82F6]/50'
                 }`}
               >
-                <div className="text-xs md:text-sm font-semibold text-[#1B4332] dark:text-[#34D399]">{location}</div>
+                <div className="text-xs md:text-sm font-semibold text-[#1B4332] dark:text-[#34D399]">{loc.code}</div>
                 <div className="text-[10px] md:text-xs text-[#6B7280] dark:text-[#CBD5E1] mt-0.5 md:mt-1">
-                  {isOccupied ? 'Ocupado' : 'Disponible'}
+                  {loc.occupancy_percent.toFixed(0)}%
                 </div>
               </div>
             );

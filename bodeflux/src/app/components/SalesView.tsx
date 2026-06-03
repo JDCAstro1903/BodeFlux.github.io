@@ -167,18 +167,24 @@ export function SalesView() {
     setCart(newCart);
   };
 
-  const handleCheckout = async (customerName: string) => {
+  const handleCheckout = async (payload: { customerName: string; discountType?: 'percentage' | 'fixed'; discountValue?: number; customPrices: Record<string, number> }) => {
     try {
       const saleItems = Object.entries(cart).map(([productId, quantity]) => {
         const product = products.find(p => p.id === productId)!;
+        const unit_price = payload.customPrices[productId] ?? product.price;
         return {
           product_id: product.numericId,
           product_name: product.name,
           quantity,
-          unit_price: product.price,
+          unit_price,
         };
       });
-      const result = await salesApi.create({ customer_name: customerName || undefined, items: saleItems });
+      const result = await salesApi.create({ 
+        customer_name: payload.customerName || undefined, 
+        discount_type: payload.discountType,
+        discount_value: payload.discountValue,
+        items: saleItems 
+      });
       setPreviewSale(result);
       setCart({});
       setShowCart(false);
@@ -808,6 +814,12 @@ export function SalesView() {
                           <div className="flex justify-between w-48" style={{ fontSize: '13px', color: '#6B7280' }}>
                             <span>Subtotal</span><span>${sale.subtotal.toFixed(2)}</span>
                           </div>
+                          {sale.discount_amount > 0 && (
+                            <div className="flex justify-between w-48 text-[#10B981]" style={{ fontSize: '13px', fontWeight: '500' }}>
+                              <span>Desc. {sale.discount_type === 'percentage' ? `(${sale.discount_value}%)` : ''}</span>
+                              <span>-${sale.discount_amount.toFixed(2)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between w-48" style={{ fontSize: '13px', color: '#6B7280' }}>
                             <span>IVA (16%)</span><span>${sale.tax.toFixed(2)}</span>
                           </div>

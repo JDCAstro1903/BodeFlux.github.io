@@ -16,12 +16,15 @@ interface CartProps {
   products: Product[];
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string) => void;
-  onCheckout: (customerName: string) => void;
+  onCheckout: (payload: { customerName: string; discountType?: 'percentage' | 'fixed'; discountValue?: number; customPrices: Record<string, number> }) => void;
 }
 
 export function ShoppingCartModal({ isOpen, onClose, cart, products, onUpdateQuantity, onRemoveItem, onCheckout }: CartProps) {
   const [customerName, setCustomerName] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
+  const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState<number>(0);
 
   const cartItems = Object.entries(cart).map(([productId, quantity]) => {
     const product = products.find(p => p.id === productId);
@@ -29,17 +32,33 @@ export function ShoppingCartModal({ isOpen, onClose, cart, products, onUpdateQua
   }).filter(Boolean);
 
   const subtotal = cartItems.reduce((total, item) => {
-    return total + (item!.price * item!.quantity);
+    const price = customPrices[item!.id] ?? item!.price;
+    return total + (price * item!.quantity);
   }, 0);
 
-  const tax = subtotal * 0.16; // 16% IVA
-  const total = subtotal + tax;
+  let discountAmount = 0;
+  if (discountType === 'percentage') {
+    discountAmount = subtotal * (discountValue / 100);
+  } else {
+    discountAmount = discountValue;
+  }
+  
+  const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
+  const tax = subtotalAfterDiscount * 0.16; // 16% IVA
+  const total = subtotalAfterDiscount + tax;
   const totalItems = cartItems.reduce((sum, item) => sum + item!.quantity, 0);
 
   const handleCheckout = () => {
-    onCheckout(customerName.trim());
+    onCheckout({
+      customerName: customerName.trim(),
+      discountType,
+      discountValue,
+      customPrices,
+    });
     setShowCheckout(false);
     setCustomerName('');
+    setCustomPrices({});
+    setDiscountValue(0);
   };
 
   if (!isOpen) return null;
@@ -109,8 +128,16 @@ export function ShoppingCartModal({ isOpen, onClose, cart, products, onUpdateQua
                     <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#1B4332', marginBottom: '4px' }}>
                       {item!.name}
                     </h4>
-                    <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '8px' }}>
-                      ${item!.price.toFixed(2)} / {item!.unit}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span style={{ fontSize: '13px', color: '#6B7280' }}>$</span>
+                      <input
+                        type="number"
+                        value={customPrices[item!.id] ?? item!.price}
+                        onChange={(e) => setCustomPrices({ ...customPrices, [item!.id]: Number(e.target.value) })}
+                        className="w-20 px-2 py-1 rounded-[8px] bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-[#0071E3]/50"
+                        step="0.01"
+                      />
+                      <span style={{ fontSize: '13px', color: '#6B7280' }}>/ {item!.unit}</span>
                     </div>
 
                     {/* Quantity Controls */}
@@ -135,7 +162,7 @@ export function ShoppingCartModal({ isOpen, onClose, cart, products, onUpdateQua
 
                       <div className="text-right">
                         <div style={{ fontSize: '16px', fontWeight: '700', color: '#1B4332' }}>
-                          ${(item!.price * item!.quantity).toFixed(2)}
+                          ${((customPrices[item!.id] ?? item!.price) * item!.quantity).toFixed(2)}
                         </div>
                         <button
                           onClick={() => onRemoveItem(item!.id)}
@@ -163,6 +190,34 @@ export function ShoppingCartModal({ isOpen, onClose, cart, products, onUpdateQua
                 <span>Subtotal ({totalItems} productos)</span>
                 <span style={{ fontWeight: '600' }}>${subtotal.toFixed(2)}</span>
               </div>
+              
+              {/* Discount control */}
+              {showCheckout && (
+                <div className="flex items-center gap-2 py-2 border-y border-gray-100 my-2">
+                  <span style={{ fontSize: '13px', color: '#6B7280', fontWeight: '500' }}>Descuento:</span>
+                  <select 
+                    value={discountType} 
+                    onChange={e => setDiscountType(e.target.value as any)}
+                    className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-[8px] text-xs"
+                  >
+                    <option value="percentage">%</option>
+                    <option value="fixed">$</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={discountValue || ''}
+                    onChange={e => setDiscountValue(Number(e.target.value))}
+                    placeholder="0"
+                    className="w-20 px-2 py-1 rounded-[8px] bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-[#0071E3]/50"
+                  />
+                  {discountAmount > 0 && (
+                    <span className="ml-auto text-sm font-semibold text-[#10B981]">
+                      -${discountAmount.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center justify-between" style={{ fontSize: '14px', color: '#6B7280' }}>
                 <span>IVA (16%)</span>
                 <span style={{ fontWeight: '600' }}>${tax.toFixed(2)}</span>

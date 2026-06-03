@@ -9,16 +9,17 @@ from ..database import get_db
 from ..models.inventory import InventoryItem, InventoryMovement
 from ..models.product import Product as ProductModel
 from ..models.user import User
+from ..models.presentation import ProductPresentation
 from ..schemas.inventory import (
     InventoryItemCreate,
     InventoryItemResponse,
     InventoryItemUpdate,
     InventoryItemWithAlert,
-    LocationStatus,
     MovementResponse,
     OutputRequest,
 )
-from ..services.inventory_service import get_items_with_alerts, get_occupied_locations
+from ..schemas.warehouse import WarehouseMapCell, WarehouseSummary
+from ..services.inventory_service import get_items_with_alerts, get_warehouse_map, get_warehouse_summary
 from ..utils.security import get_current_user, get_optional_user
 
 router = APIRouter(prefix="/api/inventory", tags=["Inventory"])
@@ -46,10 +47,16 @@ def get_alerts(db: Session = Depends(get_db)):
     return get_items_with_alerts(db)
 
 
-@router.get("/locations", response_model=List[LocationStatus])
+@router.get("/locations", response_model=List[WarehouseMapCell])
 def get_locations(db: Session = Depends(get_db)):
     """Get occupancy status of all warehouse locations."""
-    return get_occupied_locations(db)
+    return get_warehouse_map(db)
+
+
+@router.get("/locations/summary", response_model=WarehouseSummary)
+def get_locations_summary(db: Session = Depends(get_db)):
+    """Get warehouse summary."""
+    return get_warehouse_summary(db)
 
 
 @router.get("/product-names", response_model=List[str])
@@ -147,11 +154,20 @@ def create_item(
         db.add(product)
         db.flush()
 
+    presentation: ProductPresentation | None = None
+    if payload.presentation_id:
+        presentation = db.query(ProductPresentation).filter(ProductPresentation.id == payload.presentation_id).first()
+
+    final_quantity = payload.quantity
+    if presentation:
+        final_quantity = payload.quantity * presentation.content_value
+
     item = InventoryItem(
         product_id=product.id,
+        presentation_id=presentation.id if presentation else None,
         product_name=product.name,
         category=product.category,
-        quantity=payload.quantity,
+        quantity=final_quantity,
         unit=product.unit,
         lot_number=payload.lot_number,
         expiry_date=payload.expiry_date,
@@ -160,6 +176,8 @@ def create_item(
         provider_id=payload.provider_id,
         receipt_date=payload.receipt_date,
         status="active",
+        registered_by_id=current_user.id if current_user else None,
+        registered_by_name=current_user.name if current_user else None,
     )
     db.add(item)
     db.flush()

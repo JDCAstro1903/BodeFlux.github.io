@@ -7,7 +7,8 @@ import {
   type InventoryCreatePayload,
   type OutputPayload,
   type WasteCreatePayload,
-  type LocationStatusAPI,
+  type WarehouseMapCellAPI,
+  type WarehouseSummaryAPI,
 } from '../services/api';
 
 export interface InventoryItem {
@@ -63,8 +64,9 @@ interface InventoryContextType {
   warningItems: InventoryItemWithAlert[];
   healthyItems: InventoryItemWithAlert[];
   expiredItems: InventoryItemWithAlert[];
-  locations: LocationStatusAPI[];
-  addItem: (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'> & { productId?: number; providerId?: number }) => Promise<void>;
+  locations: WarehouseMapCellAPI[];
+  locationSummary: WarehouseSummaryAPI | null;
+  addItem: (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'> & { productId?: number; providerId?: number; presentationId?: number }) => Promise<void>;
   removeItem: (id: string, reason: 'output' | 'waste') => Promise<void>;
   registerWaste: (data: WasteCreatePayload) => Promise<void>;
   prioritizeItem: (id: string) => void;
@@ -78,21 +80,24 @@ const InventoryContext = createContext<InventoryContextType | undefined>(undefin
 export function InventoryProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [itemsWithAlerts, setItemsWithAlerts] = useState<InventoryItemWithAlert[]>([]);
-  const [locations, setLocations] = useState<LocationStatusAPI[]>([]);
+  const [locations, setLocations] = useState<WarehouseMapCellAPI[]>([]);
+  const [locationSummary, setLocationSummary] = useState<WarehouseSummaryAPI | null>(null);
   const [prioritizedId, setPrioritizedId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshInventory = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [rawItems, alertItems, locs] = await Promise.all([
+      const [rawItems, alertItems, locs, summary] = await Promise.all([
         inventoryApi.list('active'),
         inventoryApi.alerts(),
         inventoryApi.locations(),
+        inventoryApi.locationSummary(),
       ]);
       setItems(rawItems.map(mapItem));
       setItemsWithAlerts(alertItems.map(mapAlertItem));
       setLocations(locs);
+      setLocationSummary(summary);
     } catch (err) {
       console.error('Error fetching inventory:', err);
     } finally {
@@ -110,9 +115,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const healthyItems = itemsWithAlerts.filter((i) => i.alertLevel === 'healthy');
   const expiredItems = itemsWithAlerts.filter((i) => i.alertLevel === 'expired');
 
-  const addItem = async (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'> & { productId?: number; providerId?: number }) => {
+  const addItem = async (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'> & { productId?: number; providerId?: number; presentationId?: number }) => {
     const payload: InventoryCreatePayload = {
       product_id: item.productId,
+      presentation_id: item.presentationId,
       product_name: item.productName,
       category: item.category,
       quantity: item.quantity,
@@ -162,6 +168,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         healthyItems,
         expiredItems,
         locations,
+        locationSummary,
         addItem,
         removeItem,
         registerWaste,

@@ -11,6 +11,7 @@ interface RegisterEntryProps {
 
 export interface EntryData {
   productId?: number;
+  presentationId?: number;
   productName: string;
   category: string;
   quantity: number;
@@ -33,6 +34,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
   const [products, setProducts] = useState<ProductAPI[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<ProductAPI | null>(null);
 
   useEffect(() => {
     providerApi.list().then(setProviders).catch(console.error);
@@ -44,6 +46,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
   );
 
   const handleSelectProduct = (product: ProductAPI) => {
+    setSelectedProduct(product);
     const date = new Date();
     const stamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
     const idPart = String(product.id).padStart(3, '0');
@@ -66,6 +69,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
 
   const [formData, setFormData] = useState<EntryData>({
     productId: undefined,
+    presentationId: undefined,
     productName: '',
     category: '',
     quantity: 0,
@@ -98,6 +102,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
     onSubmit(formData);
     setFormData({
       productId: undefined,
+      presentationId: undefined,
       productName: '',
       category: '',
       quantity: 0,
@@ -110,6 +115,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
       receiptDate: new Date().toISOString().split('T')[0],
       price: 0,
     });
+    setSelectedProduct(null);
     onClose();
   };
 
@@ -220,6 +226,29 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                   </div>
                 )}
               </div>
+
+              {/* Presentation (if available) */}
+              {selectedProduct?.presentations && selectedProduct.presentations.length > 0 && (
+                <div>
+                  <label className="flex items-center gap-2 mb-2 text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '13px', fontWeight: '500' }}>
+                    <Package size={16} />
+                    Presentación
+                  </label>
+                  <select
+                    value={formData.presentationId || ''}
+                    onChange={(e) => setFormData({ ...formData, presentationId: Number(e.target.value) || undefined })}
+                    className="w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C] transition-all"
+                    style={{ fontSize: '14px' }}
+                  >
+                    <option value="">Cantidad unitaria / sin presentación</option>
+                    {selectedProduct.presentations.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.presentation_name} ({p.content_value} {p.content_unit})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Category */}
               <div>

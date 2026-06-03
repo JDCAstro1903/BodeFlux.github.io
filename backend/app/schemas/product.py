@@ -1,6 +1,19 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
+
+
+class PresentationInProduct(BaseModel):
+    id: int
+    presentation_name: str
+    content_value: float
+    content_unit: str
+    price_override: Optional[float] = None
+    is_default: bool
+    is_active: bool
+
+    class Config:
+        from_attributes = True
 
 
 class ProductCreate(BaseModel):
@@ -42,6 +55,7 @@ class ProductResponse(BaseModel):
     provider_id: Optional[int] = None
     provider_name: Optional[str] = None
     created_at: Optional[datetime] = None
+    presentations: List[PresentationInProduct] = []
 
     class Config:
         from_attributes = True

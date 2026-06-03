@@ -23,6 +23,9 @@ class InventoryItem(Base):
         SAEnum("active", "output", "waste", name="inventory_status"),
         default="active",
     )
+    registered_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    registered_by_name = Column(String(150), nullable=True)
+    presentation_id = Column(Integer, ForeignKey("product_presentations.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

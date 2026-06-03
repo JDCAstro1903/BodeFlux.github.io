@@ -22,3 +22,6 @@ class Product(Base):
     provider_name = Column(String(200), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    presentations = relationship("ProductPresentation", back_populates="product", cascade="all, delete-orphan")

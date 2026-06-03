@@ -87,6 +87,9 @@ export interface InventoryItemAPI {
   provider_id: number | null;
   receipt_date: string;
   status: string;
+  registered_by_id: number | null;
+  registered_by_name: string | null;
+  presentation_id: number | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -98,6 +101,7 @@ export interface InventoryItemWithAlertAPI extends InventoryItemAPI {
 
 export interface InventoryCreatePayload {
   product_id?: number;
+  presentation_id?: number;
   product_name: string;
   category: string;
   quantity: number;
@@ -117,11 +121,36 @@ export interface OutputPayload {
   notes?: string;
 }
 
-export interface LocationStatusAPI {
-  location: string;
-  is_occupied: boolean;
-  product_name: string | null;
-  lot_number: string | null;
+export interface WarehouseProductInfoAPI {
+  product_name: string;
+  lot_number: string;
+  quantity: number;
+  unit: string;
+  expiry_date: string | null;
+  days_left: number | null;
+}
+
+export interface WarehouseMapCellAPI {
+  code: string;
+  row_label: string;
+  col_number: number;
+  location_type: string;
+  is_enabled: boolean;
+  max_capacity: number;
+  capacity_unit: string;
+  used_capacity: number;
+  occupancy_percent: number;
+  status: string;
+  products: WarehouseProductInfoAPI[];
+}
+
+export interface WarehouseSummaryAPI {
+  total_locations: number;
+  occupied_locations: number;
+  empty_locations: number;
+  full_locations: number;
+  overall_occupancy_percent: number;
+  alert_level: string;
 }
 
 export interface InventoryMovementAPI {
@@ -145,7 +174,9 @@ export const inventoryApi = {
   alerts: () =>
     request<InventoryItemWithAlertAPI[]>('/inventory/alerts'),
   locations: () =>
-    request<LocationStatusAPI[]>('/inventory/locations'),
+    request<WarehouseMapCellAPI[]>('/inventory/locations'),
+  locationSummary: () =>
+    request<WarehouseSummaryAPI>('/inventory/locations/summary'),
   productNames: () =>
     request<string[]>('/inventory/product-names'),
   movements: (movementType?: string, limit = 200) => {
@@ -201,7 +232,14 @@ export interface ProviderCreatePayload {
 }
 
 export const providerApi = {
-  list: () => request<ProviderAPI[]>('/providers/'),
+  list: (search?: string, category?: string, minRating?: number) => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (category) params.set('category', category);
+    if (minRating !== undefined) params.set('min_rating', String(minRating));
+    const qs = params.toString();
+    return request<ProviderAPI[]>(`/providers/${qs ? `?${qs}` : ''}`);
+  },
   get: (id: number) => request<ProviderAPI>(`/providers/${id}`),
   create: (payload: ProviderCreatePayload) =>
     request<ProviderAPI>('/providers/', {
@@ -218,8 +256,18 @@ export const providerApi = {
 };
 
 // =====================
-// PRODUCTS
+// PRODUCTS & PRESENTATIONS
 // =====================
+export interface PresentationAPI {
+  id: number;
+  presentation_name: string;
+  content_value: number;
+  content_unit: string;
+  price_override: number | null;
+  is_default: boolean;
+  is_active: boolean;
+}
+
 export interface ProductAPI {
   id: number;
   name: string;
@@ -232,6 +280,7 @@ export interface ProductAPI {
   provider_id: number | null;
   provider_name: string | null;
   created_at: string | null;
+  presentations: PresentationAPI[];
 }
 
 export interface ProductCreatePayload {
@@ -274,10 +323,14 @@ export interface SaleItemPayload {
   product_name: string;
   quantity: number;
   unit_price: number;
+  discount_type?: 'percentage' | 'fixed';
+  discount_value?: number;
 }
 
 export interface SaleCreatePayload {
   customer_name?: string;
+  discount_type?: 'percentage' | 'fixed';
+  discount_value?: number;
   items: SaleItemPayload[];
 }
 
@@ -285,6 +338,9 @@ export interface SaleResponseAPI {
   id: number;
   customer_name?: string | null;
   subtotal: number;
+  discount_type: string | null;
+  discount_value: number;
+  discount_amount: number;
   tax: number;
   total: number;
   status: string;
@@ -293,6 +349,9 @@ export interface SaleResponseAPI {
     product_id: number;
     product_name: string;
     quantity: number;
+    original_price: number;
+    discount_type: string | null;
+    discount_value: number;
     unit_price: number;
     total_price: number;
   }[];

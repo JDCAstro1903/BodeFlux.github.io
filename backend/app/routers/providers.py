@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -11,9 +11,22 @@ router = APIRouter(prefix="/api/providers", tags=["Providers"])
 
 
 @router.get("/", response_model=List[ProviderResponse])
-def list_providers(db: Session = Depends(get_db)):
+def list_providers(
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    min_rating: Optional[float] = None,
+    db: Session = Depends(get_db)
+):
     """List all providers."""
-    providers = db.query(Provider).order_by(Provider.created_at.desc()).all()
+    query = db.query(Provider)
+    if search:
+        query = query.filter(Provider.name.ilike(f"%{search}%") | Provider.contact.ilike(f"%{search}%"))
+    if category:
+        query = query.filter(Provider.category == category)
+    if min_rating is not None:
+        query = query.filter(Provider.rating >= min_rating)
+        
+    providers = query.order_by(Provider.created_at.desc()).all()
     return [ProviderResponse.model_validate(p) for p in providers]
 
 

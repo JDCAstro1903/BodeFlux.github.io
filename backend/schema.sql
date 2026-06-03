@@ -59,6 +59,41 @@ CREATE TABLE IF NOT EXISTS products (
 ) ENGINE=InnoDB;
 
 -- ============================================
+-- PRODUCT PRESENTATIONS
+-- ============================================
+CREATE TABLE IF NOT EXISTS product_presentations (
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    product_id        INT NOT NULL,
+    presentation_name VARCHAR(100) NOT NULL,
+    content_value     FLOAT NOT NULL,
+    content_unit      VARCHAR(50) NOT NULL,
+    price_override    FLOAT DEFAULT NULL,
+    barcode           VARCHAR(100) DEFAULT NULL,
+    is_default        BOOLEAN DEFAULT FALSE,
+    is_active         BOOLEAN DEFAULT TRUE,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    INDEX idx_product (product_id)
+) ENGINE=InnoDB;
+
+-- ============================================
+-- WAREHOUSE LOCATIONS
+-- ============================================
+CREATE TABLE IF NOT EXISTS warehouse_locations (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    code         VARCHAR(10) NOT NULL UNIQUE,
+    row_label    CHAR(1) NOT NULL,
+    col_number   INT NOT NULL,
+    max_capacity FLOAT NOT NULL DEFAULT 100,
+    capacity_unit VARCHAR(20) NOT NULL DEFAULT 'unidades',
+    location_type ENUM('rack','piso','refrigerado','exterior') DEFAULT 'rack',
+    is_enabled   BOOLEAN DEFAULT TRUE,
+    notes        VARCHAR(200),
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_code (code)
+) ENGINE=InnoDB;
+
+-- ============================================
 -- INVENTORY ITEMS (entradas al almacén)
 -- ============================================
 CREATE TABLE IF NOT EXISTS inventory_items (
@@ -74,10 +109,15 @@ CREATE TABLE IF NOT EXISTS inventory_items (
     provider_id   INT,
     receipt_date  DATE NOT NULL,
     status        ENUM('active','output','waste') DEFAULT 'active',
+    registered_by_id INT,
+    registered_by_name VARCHAR(150),
+    presentation_id INT,
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_lot (lot_number),
-    FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE SET NULL
+    FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE SET NULL,
+    FOREIGN KEY (registered_by_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (presentation_id) REFERENCES product_presentations(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ============================================
@@ -104,6 +144,9 @@ CREATE TABLE IF NOT EXISTS sales (
     user_id       INT,
     customer_name VARCHAR(200),
     subtotal      FLOAT NOT NULL,
+    discount_type ENUM('percentage','fixed') DEFAULT NULL,
+    discount_value FLOAT DEFAULT 0.0,
+    discount_amount FLOAT DEFAULT 0.0,
     tax           FLOAT NOT NULL DEFAULT 0.0,
     total         FLOAT NOT NULL,
     status        ENUM('pending','completed','cancelled') DEFAULT 'completed',
@@ -120,6 +163,9 @@ CREATE TABLE IF NOT EXISTS sale_items (
     product_id   INT NOT NULL,
     product_name VARCHAR(200) NOT NULL,
     quantity     FLOAT NOT NULL,
+    original_price FLOAT NOT NULL,
+    discount_type ENUM('percentage','fixed') DEFAULT NULL,
+    discount_value FLOAT DEFAULT 0.0,
     unit_price   FLOAT NOT NULL,
     total_price  FLOAT NOT NULL,
     FOREIGN KEY (sale_id)    REFERENCES sales(id)    ON DELETE CASCADE,

@@ -11,6 +11,9 @@ class Sale(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     customer_name = Column(String(200), nullable=True)
     subtotal = Column(Float, nullable=False)
+    discount_type = Column(SAEnum("percentage", "fixed", name="discount_type"), nullable=True)
+    discount_value = Column(Float, default=0.0)
+    discount_amount = Column(Float, default=0.0)
     tax = Column(Float, nullable=False, default=0.0)
     total = Column(Float, nullable=False)
     status = Column(
@@ -32,6 +35,9 @@ class SaleItem(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     product_name = Column(String(200), nullable=False)
     quantity = Column(Float, nullable=False)
+    original_price = Column(Float, nullable=False)
+    discount_type = Column(SAEnum("percentage", "fixed", name="discount_type"), nullable=True)
+    discount_value = Column(Float, default=0.0)
     unit_price = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)
 

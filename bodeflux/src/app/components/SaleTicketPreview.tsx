@@ -132,6 +132,12 @@ export function SaleTicketPreview({ sale, onClose }: SaleTicketPreviewProps) {
                   <span>Subtotal</span>
                   <span>${sale.subtotal.toFixed(2)}</span>
                 </div>
+                {sale.discount_amount > 0 && (
+                  <div className="flex justify-between items-center" style={{ fontSize: '13px', color: '#10B981', fontWeight: '500' }}>
+                    <span>Descuento {sale.discount_type === 'percentage' ? `(${sale.discount_value}%)` : ''}</span>
+                    <span>-${sale.discount_amount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center" style={{ fontSize: '13px', color: '#6B7280' }}>
                   <span>IVA (16%)</span>
                   <span>${sale.tax.toFixed(2)}</span>

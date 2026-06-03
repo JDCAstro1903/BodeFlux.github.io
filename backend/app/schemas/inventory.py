@@ -5,6 +5,7 @@ from datetime import date, datetime
 
 class InventoryItemCreate(BaseModel):
     product_id: Optional[int] = None
+    presentation_id: Optional[int] = None
     product_name: str
     category: str
     quantity: float
@@ -29,6 +30,7 @@ class InventoryItemUpdate(BaseModel):
 class InventoryItemResponse(BaseModel):
     id: int
     product_id: Optional[int] = None
+    presentation_id: Optional[int] = None
     product_name: str
     category: str
     quantity: float
@@ -40,6 +42,8 @@ class InventoryItemResponse(BaseModel):
     provider_id: Optional[int] = None
     receipt_date: date
     status: str
+    registered_by_id: Optional[int] = None
+    registered_by_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

@@ -37,6 +37,11 @@ export function ProviderManagement() {
   const [assigningProviderId, setAssigningProviderId] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | ''>('');
 
+  // Filters
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [minRatingFilter, setMinRatingFilter] = useState<number | ''>('');
+
   const [formData, setFormData] = useState({
     name: '',
     contact: '',
@@ -48,11 +53,11 @@ export function ProviderManagement() {
 
   // Fetch providers and products from API
   useEffect(() => {
-    providerApi.list().then((data) => {
+    providerApi.list(search, categoryFilter || undefined, minRatingFilter === '' ? undefined : Number(minRatingFilter)).then((data) => {
       setProviders(data.map(mapProvider));
     }).catch(console.error);
     productApi.list().then(setProducts).catch(console.error);
-  }, []);
+  }, [search, categoryFilter, minRatingFilter]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +131,39 @@ export function ProviderManagement() {
           <span className="hidden sm:inline">Nuevo Proveedor</span>
           <span className="sm:hidden">Nuevo</span>
         </button>
+      </div>
+
+      {/* Filter Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4">
+        <input 
+          type="text" 
+          placeholder="Buscar proveedor..." 
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="px-3 py-2 rounded-[12px] bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-gray-600 text-[#1B4332] dark:text-[#F1F5F9] text-sm focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50"
+        />
+        <select 
+          value={categoryFilter}
+          onChange={e => setCategoryFilter(e.target.value)}
+          className="px-3 py-2 rounded-[12px] bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-gray-600 text-[#1B4332] dark:text-[#F1F5F9] text-sm focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50"
+        >
+          <option value="">Todas las categorías</option>
+          <option value="Fertilizantes">Fertilizantes</option>
+          <option value="Semillas">Semillas</option>
+          <option value="Pesticidas">Pesticidas</option>
+          <option value="Herbicidas">Herbicidas</option>
+          <option value="Otros">Otros</option>
+        </select>
+        <select 
+          value={minRatingFilter}
+          onChange={e => setMinRatingFilter(e.target.value)}
+          className="px-3 py-2 rounded-[12px] bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-gray-600 text-[#1B4332] dark:text-[#F1F5F9] text-sm focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50"
+        >
+          <option value="">Cualquier calificación</option>
+          <option value="4">4+ Estrellas</option>
+          <option value="3">3+ Estrellas</option>
+          <option value="2">2+ Estrellas</option>
+        </select>
       </div>
 
       {/* Add Provider Form */}
