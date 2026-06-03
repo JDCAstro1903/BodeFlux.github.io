@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware as OriginalCORSMiddleware
 
 from .database import Base, engine
 from .routers import auth, dashboard, inventory, presentations, products, providers, provider_orders, sales, users, waste
@@ -49,13 +49,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow React frontend (localhost dev + production + all Vercel preview deployments)
-# Note: "https://*.vercel.app" wildcard in allow_origins covers all preview URLs.
-# allow_origin_regex is intentionally omitted — combining it with a non-["*"]
-# allow_origins list triggers a Starlette bug where preflight responses drop the
-# Access-Control-Allow-Origin header, causing 502s on the OPTIONS request.
+class CustomCORSMiddleware(OriginalCORSMiddleware):
+    def is_allowed_origin(self, origin: str) -> bool:
+        # Permitir cualquier dominio de vercel nativamente
+        if origin and origin.endswith(".vercel.app"):
+            return True
+        return super().is_allowed_origin(origin)
+
 app.add_middleware(
-    CORSMiddleware,
+    CustomCORSMiddleware,
     allow_origins=_get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
