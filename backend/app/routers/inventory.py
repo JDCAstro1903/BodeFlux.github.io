@@ -249,21 +249,84 @@ def register_output(
     if item.status != "active":
         raise HTTPException(status_code=400, detail="El item no está activo")
 
-    if payload.quantity >= item.quantity:
+    if payload.quantity <= 0:
+        raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a 0")
+
+    remaining_to_deduct = payload.quantity
+
+    # 1. Descontar del lote seleccionado inicialmente
+    if remaining_to_deduct >= item.quantity:
+        deducted_from_this = item.quantity
+        remaining_to_deduct -= item.quantity
         item.status = "output"
         item.quantity = 0
     else:
-        item.quantity -= payload.quantity
+        deducted_from_this = remaining_to_deduct
+        item.quantity -= remaining_to_deduct
+        remaining_to_deduct = 0
 
-    movement = InventoryMovement(
-        inventory_item_id=item.id,
-        movement_type="output",
-        quantity=payload.quantity,
-        user_id=current_user.id if current_user else None,
-        destination=payload.destination,
-        notes=payload.notes or f"Salida a {payload.destination}",
-    )
-    db.add(movement)
+    if deducted_from_this > 0:
+        db.add(InventoryMovement(
+            inventory_item_id=item.id,
+            movement_type="output",
+            quantity=deducted_from_this,
+            user_id=current_user.id if current_user else None,
+            destination=payload.destination,
+            notes=payload.notes or f"Salida a {payload.destination}",
+        ))
+
+    # 2. Si todavía falta por descontar (ej. pidieron 7 y este lote tenía 5)
+    if remaining_to_deduct > 0:
+        if not item.product_id:
+            db.rollback()
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Stock insuficiente en este lote ({item.quantity}) y no se puede buscar en otros."
+            )
+            
+        other_lots = (
+            db.query(InventoryItem)
+            .filter(
+                InventoryItem.product_id == item.product_id,
+                InventoryItem.status == "active",
+                InventoryItem.id != item.id
+            )
+            .order_by(InventoryItem.expiry_date.asc())
+            .all()
+        )
+        
+        for lot in other_lots:
+            if remaining_to_deduct <= 0:
+                break
+                
+            if remaining_to_deduct >= lot.quantity:
+                deducted = lot.quantity
+                remaining_to_deduct -= lot.quantity
+                lot.status = "output"
+                lot.quantity = 0
+            else:
+                deducted = remaining_to_deduct
+                lot.quantity -= remaining_to_deduct
+                remaining_to_deduct = 0
+                
+            if deducted > 0:
+                db.add(InventoryMovement(
+                    inventory_item_id=lot.id,
+                    movement_type="output",
+                    quantity=deducted,
+                    user_id=current_user.id if current_user else None,
+                    destination=payload.destination,
+                    notes=payload.notes or f"Salida a {payload.destination} (Auto-rollover)",
+                ))
+                
+        # 3. Validar si alcanzó el stock sumando todos los lotes
+        if remaining_to_deduct > 0:
+            db.rollback()
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Stock total insuficiente. Faltan {remaining_to_deduct} {item.unit} para completar la salida solicitada."
+            )
+
     db.commit()
 
     if item.product_id:
