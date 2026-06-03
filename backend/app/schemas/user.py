@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
@@ -19,9 +19,13 @@ class TokenResponse(BaseModel):
 class UserCreate(BaseModel):
     employee_id: str
     name: str
-    email: str
+    email: Optional[str] = None  # optional; auto-generated if omitted
     password: str
     role: str  # warehouse | sales | executive
+
+
+class UserUpdate(BaseModel):
+    is_active: Optional[bool] = None
 
 
 class UserResponse(BaseModel):

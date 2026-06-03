@@ -40,9 +40,11 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, db: Session = Depends(get_db)):
     """Register a new user."""
+    email_val = payload.email or f"{payload.employee_id.lower()}@agrostack.local"
+
     # Check if employee_id or email already exists
     existing = db.query(User).filter(
-        (User.employee_id == payload.employee_id) | (User.email == payload.email)
+        (User.employee_id == payload.employee_id) | (User.email == email_val)
     ).first()
     if existing:
         raise HTTPException(
@@ -53,7 +55,7 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
     user = User(
         employee_id=payload.employee_id,
         name=payload.name,
-        email=payload.email,
+        email=email_val,
         password_hash=hash_password(payload.password),
         role=payload.role,
     )

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
-from .routers import auth, dashboard, inventory, products, providers, provider_orders, sales, waste
+from .routers import auth, dashboard, inventory, products, providers, provider_orders, sales, users, waste
 
 _DEFAULT_ORIGINS = [
     "http://localhost:5173",
@@ -70,6 +70,7 @@ app.include_router(sales.router)
 app.include_router(waste.router)
 app.include_router(provider_orders.router)
 app.include_router(dashboard.router)
+app.include_router(users.router)
 
 
 @app.get("/")
