@@ -26,7 +26,6 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
   const [inventoryItems, setInventoryItems] = useState<InventoryItemAPI[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItemAPI | null>(null);
   const productDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,12 +47,10 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
   const handleItemChange = (itemId: string) => {
     const item = inventoryItems.find((i) => String(i.id) === itemId);
     if (item) {
-      setSelectedItem(item);
-      setFormData({ ...formData, inventoryItemId: item.id, productName: item.product_name, unit: item.unit, lotNumber: item.lot_number, quantity: item.presentation_value || 0 });
+      setFormData((prev) => ({ ...prev, inventoryItemId: item.id, productName: item.product_name, unit: item.unit, lotNumber: item.lot_number, quantity: item.presentation_value || 0 }));
       setProductSearch(`${item.product_name} — ${item.lot_number}`);
     } else {
-      setSelectedItem(null);
-      setFormData({ ...formData, inventoryItemId: 0, productName: '', unit: 'kg', lotNumber: '', quantity: 0 });
+      setFormData((prev) => ({ ...prev, inventoryItemId: 0, productName: '', unit: 'kg', lotNumber: '', quantity: 0 }));
       setProductSearch('');
     }
     setShowDropdown(false);
@@ -68,6 +65,9 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
     destination: '',
     outputDate: new Date().toISOString().split('T')[0],
   });
+
+  // Derive selectedItem from formData so it always stays in sync (no stale state)
+  const selectedItem = inventoryItems.find((i) => i.id === formData.inventoryItemId) ?? null;
 
   const quantityExceedsStock = selectedItem !== null && formData.quantity > selectedItem.quantity;
 
@@ -200,7 +200,7 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
                         setProductSearch(e.target.value);
                         setShowDropdown(true);
                         if (formData.inventoryItemId > 0) {
-                          setFormData({ ...formData, inventoryItemId: 0, productName: '', unit: 'kg', lotNumber: '' });
+                          setFormData((prev) => ({ ...prev, inventoryItemId: 0, productName: '', unit: 'kg', lotNumber: '', quantity: 0 }));
                         }
                       }}
                       onFocus={() => setShowDropdown(true)}

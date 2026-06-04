@@ -55,10 +55,11 @@ export function RegisterWaste({ isOpen, onClose, onSubmit }: RegisterWasteProps)
         lotNumber: item.lot_number,
         productName: item.product_name,
         unit: item.unit,
+        quantity: 0,
       }));
       setProductSearch(`${item.product_name} — ${item.lot_number}`);
     } else {
-      setFormData((prev) => ({ ...prev, inventoryItemId: 0, lotNumber: '', productName: '', unit: 'kg' }));
+      setFormData((prev) => ({ ...prev, inventoryItemId: 0, lotNumber: '', productName: '', unit: 'kg', quantity: 0 }));
       setProductSearch('');
     }
     setShowDropdown(false);

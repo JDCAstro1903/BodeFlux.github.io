@@ -83,6 +83,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
       category: product.category,
       unit: product.unit,
       lotNumber,
+      quantity: 0,
       price: product.price,
       provider: product.provider_name || formData.provider,
       providerId: product.provider_id ?? formData.providerId,
