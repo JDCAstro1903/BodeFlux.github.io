@@ -11,7 +11,8 @@ interface RegisterEntryProps {
 
 export interface EntryData {
   productId?: number;
-  presentationId?: number;
+  presentationName?: string;
+  presentationValue?: number;
   productName: string;
   category: string;
   quantity: number;
@@ -69,7 +70,8 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
 
   const [formData, setFormData] = useState<EntryData>({
     productId: undefined,
-    presentationId: undefined,
+    presentationName: undefined,
+    presentationValue: undefined,
     productName: '',
     category: '',
     quantity: 0,
@@ -102,7 +104,8 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
     onSubmit(formData);
     setFormData({
       productId: undefined,
-      presentationId: undefined,
+      presentationName: undefined,
+      presentationValue: undefined,
       productName: '',
       category: '',
       quantity: 0,
@@ -227,25 +230,55 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                 )}
               </div>
 
-              {/* Presentation (if available) */}
-              {selectedProduct?.presentations && selectedProduct.presentations.length > 0 && (
+              {/* Presentation (Dynamic based on unit) */}
+              {(selectedProduct?.unit === 'kg' || selectedProduct?.unit === 'L' || (selectedProduct?.presentations && selectedProduct.presentations.length > 0)) && (
                 <div>
                   <label className="flex items-center gap-2 mb-2 text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '13px', fontWeight: '500' }}>
                     <Package size={16} />
-                    Presentación
+                    Tipo de Empaque
                   </label>
                   <select
-                    value={formData.presentationId || ''}
-                    onChange={(e) => setFormData({ ...formData, presentationId: Number(e.target.value) || undefined })}
+                    value={formData.presentationValue ? `${formData.presentationName}|${formData.presentationValue}` : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setFormData({ ...formData, presentationName: undefined, presentationValue: undefined });
+                      } else {
+                        const [name, value] = val.split('|');
+                        setFormData({ ...formData, presentationName: name, presentationValue: Number(value) });
+                      }
+                    }}
                     className="w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C] transition-all"
                     style={{ fontSize: '14px' }}
                   >
-                    <option value="">Cantidad unitaria / sin presentación</option>
-                    {selectedProduct.presentations.map(p => (
-                      <option key={p.id} value={p.id}>
+                    <option value="">Cantidad Unitaria / A Granel</option>
+                    
+                    {/* Existing presentations from DB */}
+                    {selectedProduct?.presentations?.map(p => (
+                      <option key={p.id} value={`${p.presentation_name}|${p.content_value}`}>
                         {p.presentation_name} ({p.content_value} {p.content_unit})
                       </option>
                     ))}
+                    
+                    {/* Default templates if none exist in DB */}
+                    {(!selectedProduct?.presentations || selectedProduct.presentations.length === 0) && selectedProduct?.unit === 'kg' && (
+                      <>
+                        <option value="Costal de 5kg|5">Costal de 5kg</option>
+                        <option value="Costal de 10kg|10">Costal de 10kg</option>
+                        <option value="Costal de 15kg|15">Costal de 15kg</option>
+                        <option value="Costal de 25kg|25">Costal de 25kg</option>
+                        <option value="Costal de 50kg|50">Costal de 50kg</option>
+                      </>
+                    )}
+                    {(!selectedProduct?.presentations || selectedProduct.presentations.length === 0) && selectedProduct?.unit === 'L' && (
+                      <>
+                        <option value="Botella de 1L|1">Botella de 1L</option>
+                        <option value="Garrafón de 5L|5">Garrafón de 5L</option>
+                        <option value="Garrafón de 10L|10">Garrafón de 10L</option>
+                        <option value="Garrafón de 20L|20">Garrafón de 20L</option>
+                        <option value="Barril de 200L|200">Barril de 200L</option>
+                      </>
+                    )}
                   </select>
                 </div>
               )}
@@ -276,7 +309,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
               <div>
                 <label className="flex items-center gap-2 mb-2 text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '13px', fontWeight: '500' }}>
                   <Weight size={16} />
-                  {formData.presentationId ? 'Cantidad de Empaques' : 'Cantidad'}
+                  {formData.presentationValue ? 'Cantidad de Empaques' : 'Cantidad'}
                 </label>
                 <input
                   type="number"
@@ -288,9 +321,9 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                   placeholder="0"
                   style={{ fontSize: '14px' }}
                 />
-                {formData.presentationId && selectedProduct && (
+                {formData.presentationValue && selectedProduct && (
                   <p className="mt-2 text-xs text-[#0071E3] font-medium">
-                    ℹ️ Ingresa el número de bultos/empaques. El sistema multiplicará esto automáticamente por el tamaño del empaque seleccionado.
+                    ℹ️ Ingresa el número de bultos/empaques. El sistema multiplicará esto automáticamente por {formData.presentationValue} {selectedProduct.unit}.
                   </p>
                 )}
               </div>

@@ -103,7 +103,8 @@ export interface InventoryItemWithAlertAPI extends InventoryItemAPI {
 
 export interface InventoryCreatePayload {
   product_id?: number;
-  presentation_id?: number;
+  presentation_name?: string;
+  presentation_value?: number;
   product_name: string;
   category: string;
   quantity: number;

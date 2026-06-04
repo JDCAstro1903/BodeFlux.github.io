@@ -172,8 +172,26 @@ def create_item(
         db.flush()
 
     presentation: ProductPresentation | None = None
-    if payload.presentation_id:
-        presentation = db.query(ProductPresentation).filter(ProductPresentation.id == payload.presentation_id).first()
+    if payload.presentation_name and payload.presentation_value:
+        # Check if presentation already exists for this product
+        presentation = db.query(ProductPresentation).filter(
+            ProductPresentation.product_id == product.id,
+            ProductPresentation.content_value == payload.presentation_value,
+            ProductPresentation.presentation_name == payload.presentation_name
+        ).first()
+        
+        if not presentation:
+            # Create the presentation on the fly
+            presentation = ProductPresentation(
+                product_id=product.id,
+                presentation_name=payload.presentation_name,
+                content_value=payload.presentation_value,
+                content_unit=payload.unit,
+                is_default=False,
+                is_active=True
+            )
+            db.add(presentation)
+            db.flush()
 
     final_quantity = payload.quantity
     if presentation:

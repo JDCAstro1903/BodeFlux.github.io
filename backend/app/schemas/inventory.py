@@ -5,7 +5,8 @@ from datetime import date, datetime
 
 class InventoryItemCreate(BaseModel):
     product_id: Optional[int] = None
-    presentation_id: Optional[int] = None
+    presentation_name: Optional[str] = None
+    presentation_value: Optional[float] = None
     product_name: str
     category: str
     quantity: float

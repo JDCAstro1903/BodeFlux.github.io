@@ -66,7 +66,7 @@ interface InventoryContextType {
   expiredItems: InventoryItemWithAlert[];
   locations: WarehouseMapCellAPI[];
   locationSummary: WarehouseSummaryAPI | null;
-  addItem: (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'> & { productId?: number; providerId?: number; presentationId?: number }) => Promise<void>;
+  addItem: (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'> & { productId?: number; providerId?: number; presentationName?: string; presentationValue?: number }) => Promise<void>;
   removeItem: (id: string, reason: 'output' | 'waste') => Promise<void>;
   registerWaste: (data: WasteCreatePayload) => Promise<void>;
   prioritizeItem: (id: string) => void;
@@ -115,10 +115,11 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const healthyItems = itemsWithAlerts.filter((i) => i.alertLevel === 'healthy');
   const expiredItems = itemsWithAlerts.filter((i) => i.alertLevel === 'expired');
 
-  const addItem = async (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'> & { productId?: number; providerId?: number; presentationId?: number }) => {
+  const addItem = async (item: Omit<InventoryItem, 'id' | 'status' | 'numericId'> & { productId?: number; providerId?: number; presentationName?: string; presentationValue?: number }) => {
     const payload: InventoryCreatePayload = {
       product_id: item.productId,
-      presentation_id: item.presentationId,
+      presentation_name: item.presentationName,
+      presentation_value: item.presentationValue,
       product_name: item.productName,
       category: item.category,
       quantity: item.quantity,
