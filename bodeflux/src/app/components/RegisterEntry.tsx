@@ -69,8 +69,8 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
         presName = 'Costal de 5kg';
         presValue = 5;
       } else if (product.unit === 'L') {
-        presName = 'Botella de 1L';
-        presValue = 1;
+        presName = 'Garrafón de 5L';
+        presValue = 5;
       }
     }
 
@@ -303,7 +303,6 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                     )}
                     {(!selectedProduct?.presentations || selectedProduct.presentations.length === 0) && formData.unit === 'L' && (
                       <>
-                        <option value="Botella de 1L|1">Botella de 1L</option>
                         <option value="Garrafón de 5L|5">Garrafón de 5L</option>
                         <option value="Garrafón de 10L|10">Garrafón de 10L</option>
                         <option value="Garrafón de 20L|20">Garrafón de 20L</option>
@@ -401,8 +400,8 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                       presName = 'Costal de 5kg';
                       presValue = 5;
                     } else if (newUnit === 'L' && (!selectedProduct?.presentations || selectedProduct.presentations.length === 0)) {
-                      presName = 'Botella de 1L';
-                      presValue = 1;
+                      presName = 'Garrafón de 5L';
+                      presValue = 5;
                     }
                     setFormData({
                       ...formData,
@@ -416,9 +415,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                 >
                   <option value="kg">Kilogramos (kg)</option>
                   <option value="L">Litros (L)</option>
-                  <option value="bolsa">Bolsas</option>
-                  <option value="unidad">Unidades</option>
-                  <option value="caja">Cajas</option>
+                  <option value="caja">Cajas (varios pesos/vol.)</option>
                 </select>
               </div>
             </div>

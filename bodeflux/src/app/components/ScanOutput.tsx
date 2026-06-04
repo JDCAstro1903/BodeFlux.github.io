@@ -71,6 +71,25 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
 
   const quantityExceedsStock = selectedItem !== null && formData.quantity > selectedItem.quantity;
 
+  // Packaging multiple validation: if item has a presentation, qty must be a multiple of it
+  // (unless depleting the entire lot, which the backend also allows)
+  const packSize = selectedItem?.presentation_value ?? null;
+  const packUnit = selectedItem?.unit ?? '';
+  const packName = selectedItem?.presentation_name ?? '';
+  const breaksPackage =
+    packSize !== null &&
+    packSize > 0 &&
+    formData.quantity > 0 &&
+    formData.quantity < (selectedItem?.quantity ?? 0) &&  // depleting fully is always OK
+    Math.round(formData.quantity % packSize * 10000) / 10000 !== 0;
+
+  // Build the list of valid multiples up to available stock
+  const validMultiples: number[] = packSize && selectedItem
+    ? Array.from({ length: Math.floor(selectedItem.quantity / packSize) }, (_, i) => (i + 1) * packSize)
+    : [];
+
+  const canSubmit = !quantityExceedsStock && !breaksPackage && formData.quantity > 0 && !!formData.inventoryItemId;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.inventoryItemId) return;
@@ -80,6 +99,10 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
     }
     if (selectedItem && formData.quantity > selectedItem.quantity) {
       alert(`Stock insuficiente. Disponible: ${selectedItem.quantity} ${selectedItem.unit}`);
+      return;
+    }
+    if (breaksPackage) {
+      alert(`No puedes sacar ${formData.quantity} ${packUnit} porque los empaques son de ${packSize} ${packUnit} (${packName}).\nCantidades válidas: ${validMultiples.slice(0, 6).join(', ')}…`);
       return;
     }
     onSubmit(formData);
@@ -270,27 +293,63 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
                 <input
                   type="number"
                   required
-                  min={selectedItem?.presentation_value || 1}
+                  min={packSize || 1}
                   max={selectedItem?.quantity}
-                  step={selectedItem?.presentation_value || 'any'}
+                  step={packSize || 'any'}
                   value={formData.quantity || ''}
                   onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
                   className={`w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border-2 dark:text-white dark:placeholder-[#6B7280] focus:outline-none transition-all ${
-                    quantityExceedsStock
+                    quantityExceedsStock || breaksPackage
                       ? 'border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/50'
+                      : formData.quantity > 0 && selectedItem
+                      ? 'border-emerald-400 focus:ring-2 focus:ring-emerald-400/40'
                       : 'border-gray-200 dark:border-[#3A3A3C] focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C]'
                   }`}
                   placeholder="0"
                   style={{ fontSize: '14px' }}
                 />
+
+                {/* Stock exceeded error */}
                 {quantityExceedsStock && (
                   <p className="mt-1.5 text-xs font-semibold text-[#EF4444]">
                     ⚠️ Excede el stock disponible ({selectedItem!.quantity} {selectedItem!.unit})
                   </p>
                 )}
-                {selectedItem?.presentation_value && !quantityExceedsStock && (
-                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 font-medium">
-                    ⚠️ Solo empaques cerrados: Múltiplos de {selectedItem.presentation_value} {selectedItem.unit} ({selectedItem.presentation_name})
+
+                {/* Packaging multiple error */}
+                {breaksPackage && !quantityExceedsStock && (
+                  <p className="mt-1.5 text-xs font-semibold text-[#EF4444]">
+                    ❌ {formData.quantity} {packUnit} rompe un empaque — solo múltiplos de {packSize} {packUnit} ({packName})
+                  </p>
+                )}
+
+                {/* Valid multiples chips */}
+                {packSize && selectedItem && validMultiples.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {validMultiples.slice(0, 8).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, quantity: v })}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
+                          formData.quantity === v
+                            ? 'bg-[#0071E3] text-white shadow'
+                            : 'bg-[#EFF6FF] dark:bg-[#172554] text-[#0071E3] dark:text-[#60A5FA] hover:bg-[#0071E3] hover:text-white'
+                        }`}
+                      >
+                        {v} {packUnit}
+                      </button>
+                    ))}
+                    {validMultiples.length > 8 && (
+                      <span className="px-2.5 py-1 text-[11px] text-[#9CA3AF]">+{validMultiples.length - 8} más</span>
+                    )}
+                  </div>
+                )}
+
+                {/* All good hint */}
+                {!quantityExceedsStock && !breaksPackage && formData.quantity > 0 && selectedItem && (
+                  <p className="mt-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    ✓ Cantidad válida
                   </p>
                 )}
               </div>
@@ -310,9 +369,7 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
                 >
                   <option value="kg">Kilogramos (kg)</option>
                   <option value="L">Litros (L)</option>
-                  <option value="bolsa">Bolsas</option>
-                  <option value="unidad">Unidades</option>
-                  <option value="caja">Cajas</option>
+                  <option value="caja">Cajas (varios pesos/vol.)</option>
                 </select>
               </div>
 
@@ -362,7 +419,7 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
             </button>
             <button
               type="submit"
-              disabled={quantityExceedsStock}
+              disabled={!canSubmit}
               className="flex-1 py-3 rounded-[16px] bg-gradient-to-br from-[#0071E3] to-[#005BB5] text-white hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
               style={{ fontSize: '15px', fontWeight: '600', boxShadow: '0 8px 24px rgba(0, 113, 227, 0.3)' }}
             >

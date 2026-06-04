@@ -78,6 +78,21 @@ export function RegisterWaste({ isOpen, onClose, onSubmit }: RegisterWasteProps)
 
   const selectedItem = inventoryItems.find((i) => i.id === formData.inventoryItemId) ?? null;
 
+  // Packaging multiple validation (same rule as output)
+  const packSize = selectedItem?.presentation_value ?? null;
+  const packUnit = selectedItem?.unit ?? '';
+  const packName = selectedItem?.presentation_name ?? '';
+  const breaksPackage =
+    packSize !== null &&
+    packSize > 0 &&
+    formData.quantity > 0 &&
+    formData.quantity < (selectedItem?.quantity ?? 0) &&
+    Math.round(formData.quantity % packSize * 10000) / 10000 !== 0;
+
+  const validMultiples: number[] = packSize && selectedItem
+    ? Array.from({ length: Math.floor(selectedItem.quantity / packSize) }, (_, i) => (i + 1) * packSize)
+    : [];
+
   const [evidenceFile, setEvidenceFile] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -90,6 +105,11 @@ export function RegisterWaste({ isOpen, onClose, onSubmit }: RegisterWasteProps)
 
     if (selectedItem && formData.quantity > selectedItem.quantity) {
       alert(`La cantidad de merma (${formData.quantity} ${formData.unit}) excede el stock disponible en este lote (${selectedItem.quantity} ${selectedItem.unit}).`);
+      return;
+    }
+
+    if (breaksPackage) {
+      alert(`No puedes registrar ${formData.quantity} ${packUnit} de merma porque los empaques son de ${packSize} ${packUnit} (${packName}).\nCantidades v\u00e1lidas: ${validMultiples.slice(0, 6).join(', ')}\u2026`);
       return;
     }
 
@@ -318,12 +338,12 @@ export function RegisterWaste({ isOpen, onClose, onSubmit }: RegisterWasteProps)
                     type="number"
                     required
                     min="0.01"
-                    step="0.01"
+                    step={packSize || '0.01'}
                     max={selectedItem?.quantity}
                     value={formData.quantity || ''}
                     onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
                     className={`w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border-2 dark:text-white dark:placeholder-[#6B7280] focus:outline-none transition-all ${
-                      selectedItem && formData.quantity > selectedItem.quantity
+                      (selectedItem && formData.quantity > selectedItem.quantity) || breaksPackage
                         ? 'border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/50'
                         : 'border-gray-200 dark:border-[#3A3A3C] focus:ring-2 focus:ring-[#EF4444]/50 focus:bg-white dark:focus:bg-[#3A3A3C]'
                     }`}
@@ -335,7 +355,33 @@ export function RegisterWaste({ isOpen, onClose, onSubmit }: RegisterWasteProps)
                       ⚠️ Excede el stock disponible ({selectedItem.quantity} {selectedItem.unit})
                     </p>
                   )}
-                  {selectedItem && formData.quantity <= selectedItem.quantity && formData.quantity > 0 && (
+                  {breaksPackage && !(selectedItem && formData.quantity > selectedItem.quantity) && (
+                    <p className="mt-1.5 text-xs font-semibold text-[#EF4444]">
+                      ❌ {formData.quantity} {packUnit} rompe un empaque — solo múltiplos de {packSize} {packUnit} ({packName})
+                    </p>
+                  )}
+                  {packSize && selectedItem && validMultiples.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {validMultiples.slice(0, 8).map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, quantity: v })}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
+                            formData.quantity === v
+                              ? 'bg-[#EF4444] text-white shadow'
+                              : 'bg-[#FEF2F2] dark:bg-[#3B1515] text-[#EF4444] hover:bg-[#EF4444] hover:text-white'
+                          }`}
+                        >
+                          {v} {packUnit}
+                        </button>
+                      ))}
+                      {validMultiples.length > 8 && (
+                        <span className="px-2.5 py-1 text-[11px] text-[#9CA3AF]">+{validMultiples.length - 8} más</span>
+                      )}
+                    </div>
+                  )}
+                  {selectedItem && formData.quantity <= selectedItem.quantity && formData.quantity > 0 && !breaksPackage && (
                     <p className="mt-1.5 text-xs text-[#6B7280] dark:text-[#9CA3AF]">
                       Disponible: {selectedItem.quantity} {selectedItem.unit}
                     </p>
@@ -357,9 +403,7 @@ export function RegisterWaste({ isOpen, onClose, onSubmit }: RegisterWasteProps)
                   >
                     <option value="kg">Kilogramos (kg)</option>
                     <option value="L">Litros (L)</option>
-                    <option value="bolsa">Bolsas</option>
-                    <option value="unidad">Unidades</option>
-                    <option value="caja">Cajas</option>
+                    <option value="caja">Cajas (varios pesos/vol.)</option>
                   </select>
                 </div>
               </div>
