@@ -26,6 +26,7 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
   const [inventoryItems, setInventoryItems] = useState<InventoryItemAPI[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItemAPI | null>(null);
   const productDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,10 +48,12 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
   const handleItemChange = (itemId: string) => {
     const item = inventoryItems.find((i) => String(i.id) === itemId);
     if (item) {
-      setFormData({ ...formData, inventoryItemId: item.id, productName: item.product_name, unit: item.unit, lotNumber: item.lot_number });
+      setSelectedItem(item);
+      setFormData({ ...formData, inventoryItemId: item.id, productName: item.product_name, unit: item.unit, lotNumber: item.lot_number, quantity: item.presentation_value || 0 });
       setProductSearch(`${item.product_name} — ${item.lot_number}`);
     } else {
-      setFormData({ ...formData, inventoryItemId: 0, productName: '', unit: 'kg', lotNumber: '' });
+      setSelectedItem(null);
+      setFormData({ ...formData, inventoryItemId: 0, productName: '', unit: 'kg', lotNumber: '', quantity: 0 });
       setProductSearch('');
     }
     setShowDropdown(false);
@@ -238,13 +241,19 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
                 <input
                   type="number"
                   required
-                  min="1"
+                  min={selectedItem?.presentation_value || 1}
+                  step={selectedItem?.presentation_value || "any"}
                   value={formData.quantity || ''}
                   onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
                   className="w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] dark:text-white dark:placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C] transition-all"
                   placeholder="0"
                   style={{ fontSize: '14px' }}
                 />
+                {selectedItem?.presentation_value && (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                    ⚠️ Solo empaques cerrados: Múltiplos de {selectedItem.presentation_value} {selectedItem.unit} ({selectedItem.presentation_name})
+                  </p>
+                )}
               </div>
 
               {/* Unit */}

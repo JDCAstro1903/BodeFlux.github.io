@@ -276,7 +276,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
               <div>
                 <label className="flex items-center gap-2 mb-2 text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '13px', fontWeight: '500' }}>
                   <Weight size={16} />
-                  Cantidad
+                  {formData.presentationId ? 'Cantidad de Empaques' : 'Cantidad'}
                 </label>
                 <input
                   type="number"
@@ -288,6 +288,11 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                   placeholder="0"
                   style={{ fontSize: '14px' }}
                 />
+                {formData.presentationId && selectedProduct && (
+                  <p className="mt-2 text-xs text-[#0071E3] font-medium">
+                    ℹ️ Ingresa el número de bultos/empaques. El sistema multiplicará esto automáticamente por el tamaño del empaque seleccionado.
+                  </p>
+                )}
               </div>
 
               {/* Price */}

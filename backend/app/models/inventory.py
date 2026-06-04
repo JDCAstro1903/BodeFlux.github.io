@@ -32,6 +32,15 @@ class InventoryItem(Base):
     # Relationships
     movements = relationship("InventoryMovement", back_populates="inventory_item")
     provider_ref = relationship("Provider", foreign_keys=[provider_id])
+    presentation = relationship("ProductPresentation", foreign_keys=[presentation_id])
+    
+    @property
+    def presentation_name(self) -> str | None:
+        return self.presentation.presentation_name if self.presentation else None
+        
+    @property
+    def presentation_value(self) -> float | None:
+        return self.presentation.content_value if self.presentation else None
 
 
 class InventoryMovement(Base):

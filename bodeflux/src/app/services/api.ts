@@ -90,6 +90,8 @@ export interface InventoryItemAPI {
   registered_by_id: number | null;
   registered_by_name: string | null;
   presentation_id: number | null;
+  presentation_name?: string | null;
+  presentation_value?: number | null;
   created_at: string | null;
   updated_at: string | null;
 }

@@ -126,6 +126,23 @@ def _sync_product_stock(db: Session, product_id: int):
         db.commit()
 
 
+def _validate_packaging(db: Session, presentation_id: Optional[int], amount_to_take: float, lot_quantity: float):
+    """Ensure that we only take multiples of the package size, unless we are depleting the entire lot."""
+    if amount_to_take >= lot_quantity:
+        return
+    if not presentation_id:
+        return
+    
+    presentation = db.query(ProductPresentation).filter(ProductPresentation.id == presentation_id).first()
+    if presentation and presentation.content_value > 0:
+        remainder = round(amount_to_take % presentation.content_value, 4)
+        if remainder != 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Estricto Control de Empaques: Estás intentando sacar {amount_to_take} unidades, lo cual rompería un empaque cerrado de {presentation.content_value} {presentation.content_unit}. Por favor, vende en múltiplos de este empaque."
+            )
+
+
 @router.post("/", response_model=InventoryItemResponse, status_code=status.HTTP_201_CREATED)
 def create_item(
     payload: InventoryItemCreate,
@@ -255,6 +272,8 @@ def register_output(
     remaining_to_deduct = payload.quantity
 
     # 1. Descontar del lote seleccionado inicialmente
+    _validate_packaging(db, item.presentation_id, remaining_to_deduct, item.quantity)
+    
     if remaining_to_deduct >= item.quantity:
         deducted_from_this = item.quantity
         remaining_to_deduct -= item.quantity
@@ -298,6 +317,8 @@ def register_output(
         for lot in other_lots:
             if remaining_to_deduct <= 0:
                 break
+                
+            _validate_packaging(db, lot.presentation_id, remaining_to_deduct, lot.quantity)
                 
             if remaining_to_deduct >= lot.quantity:
                 deducted = lot.quantity

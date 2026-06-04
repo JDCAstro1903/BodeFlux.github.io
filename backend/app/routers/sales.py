@@ -103,6 +103,21 @@ def create_sale(
         for lot in lots:
             if remaining <= 0:
                 break
+                
+            # Validar empaque
+            if lot.presentation_id and remaining < lot.quantity:
+                from ..models.presentation import ProductPresentation
+                from fastapi import HTTPException
+                pres = db.query(ProductPresentation).filter(ProductPresentation.id == lot.presentation_id).first()
+                if pres and pres.content_value > 0:
+                    remainder = round(remaining % pres.content_value, 4)
+                    if remainder != 0:
+                        db.rollback()
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Estricto Control de Empaques: No se puede vender a granel. El lote disponible viene en empaques de {pres.content_value} {pres.content_unit}. Modifica la cantidad solicitada."
+                        )
+            
             deducted = 0
             if lot.quantity <= remaining:
                 deducted = lot.quantity

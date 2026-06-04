@@ -44,6 +44,8 @@ class InventoryItemResponse(BaseModel):
     status: str
     registered_by_id: Optional[int] = None
     registered_by_name: Optional[str] = None
+    presentation_name: Optional[str] = None
+    presentation_value: Optional[float] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
