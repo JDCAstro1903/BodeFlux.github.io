@@ -65,6 +65,8 @@ export function WarehouseControl() {
 
       await addItem({
         productId: productId,
+        presentationName: entry.presentationName,
+        presentationValue: entry.presentationValue,
         productName: entry.productName,
         category: entry.category,
         quantity: entry.quantity,
