@@ -69,9 +69,19 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
     outputDate: new Date().toISOString().split('T')[0],
   });
 
+  const quantityExceedsStock = selectedItem !== null && formData.quantity > selectedItem.quantity;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.inventoryItemId) return;
+    if (formData.quantity <= 0) {
+      alert('La cantidad debe ser mayor a 0');
+      return;
+    }
+    if (selectedItem && formData.quantity > selectedItem.quantity) {
+      alert(`Stock insuficiente. Disponible: ${selectedItem.quantity} ${selectedItem.unit}`);
+      return;
+    }
     onSubmit(formData);
     setFormData({
       inventoryItemId: 0,
@@ -215,6 +225,25 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
                 </div>
               </div>
 
+              {selectedItem && (
+                <div className="md:col-span-2 rounded-[12px] bg-[#EFF6FF] dark:bg-[#172554] border border-[#0071E3]/20 px-4 py-3 grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-[#9CA3AF]" style={{ fontSize: '11px' }}>Número de lote</p>
+                    <p className="font-mono font-semibold text-[#0071E3] dark:text-[#60A5FA]" style={{ fontSize: '13px' }}>{selectedItem.lot_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-[#9CA3AF]" style={{ fontSize: '11px' }}>Stock disponible</p>
+                    <p className="font-bold text-[#1B4332] dark:text-[#E5E7EB]" style={{ fontSize: '13px' }}>{selectedItem.quantity} {selectedItem.unit}</p>
+                  </div>
+                  <div>
+                    <p className="text-[#9CA3AF]" style={{ fontSize: '11px' }}>Empaque</p>
+                    <p className="font-semibold text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '13px' }}>
+                      {selectedItem.presentation_name || 'A granel'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Lot Number (from scan) */}
               <div>
                 <label className="flex items-center gap-2 mb-2 text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '13px', fontWeight: '500' }}>
@@ -242,14 +271,24 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
                   type="number"
                   required
                   min={selectedItem?.presentation_value || 1}
-                  step={selectedItem?.presentation_value || "any"}
+                  max={selectedItem?.quantity}
+                  step={selectedItem?.presentation_value || 'any'}
                   value={formData.quantity || ''}
                   onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                  className="w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] dark:text-white dark:placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C] transition-all"
+                  className={`w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border-2 dark:text-white dark:placeholder-[#6B7280] focus:outline-none transition-all ${
+                    quantityExceedsStock
+                      ? 'border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/50'
+                      : 'border-gray-200 dark:border-[#3A3A3C] focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C]'
+                  }`}
                   placeholder="0"
                   style={{ fontSize: '14px' }}
                 />
-                {selectedItem?.presentation_value && (
+                {quantityExceedsStock && (
+                  <p className="mt-1.5 text-xs font-semibold text-[#EF4444]">
+                    ⚠️ Excede el stock disponible ({selectedItem!.quantity} {selectedItem!.unit})
+                  </p>
+                )}
+                {selectedItem?.presentation_value && !quantityExceedsStock && (
                   <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 font-medium">
                     ⚠️ Solo empaques cerrados: Múltiplos de {selectedItem.presentation_value} {selectedItem.unit} ({selectedItem.presentation_name})
                   </p>
@@ -323,7 +362,8 @@ export function ScanOutput({ isOpen, onClose, onSubmit }: ScanOutputProps) {
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 rounded-[16px] bg-gradient-to-br from-[#0071E3] to-[#005BB5] text-white hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+              disabled={quantityExceedsStock}
+              className="flex-1 py-3 rounded-[16px] bg-gradient-to-br from-[#0071E3] to-[#005BB5] text-white hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
               style={{ fontSize: '15px', fontWeight: '600', boxShadow: '0 8px 24px rgba(0, 113, 227, 0.3)' }}
             >
               Registrar Salida

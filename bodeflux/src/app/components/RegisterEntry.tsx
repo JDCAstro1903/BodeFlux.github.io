@@ -1,7 +1,7 @@
 import { X, Package, Calendar, MapPin, Building2, Hash, Weight, Search, Star, DollarSign } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { providerApi, type ProviderAPI, productApi, type ProductAPI } from '../services/api';
+import { providerApi, type ProviderAPI, productApi, type ProductAPI, inventoryApi, type WarehouseMapCellAPI } from '../services/api';
 
 interface RegisterEntryProps {
   isOpen: boolean;
@@ -36,11 +36,15 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
   const [productSearch, setProductSearch] = useState('');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductAPI | null>(null);
+  const [apiLocations, setApiLocations] = useState<WarehouseMapCellAPI[]>([]);
 
   useEffect(() => {
-    providerApi.list().then(setProviders).catch(console.error);
-    productApi.list().then(setProducts).catch(console.error);
-  }, []);
+    if (isOpen) {
+      providerApi.list().then(setProviders).catch(console.error);
+      productApi.list().then(setProducts).catch(console.error);
+      inventoryApi.locations().then(setApiLocations).catch(console.error);
+    }
+  }, [isOpen]);
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -105,11 +109,18 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
     price: 0,
   });
 
-  // Track occupied locations
-  const occupiedLocations = ['A-3', 'B-1', 'C-2']; // In production, this would come from API/state
-
+  // Check if a location is occupied using real API data
   const isLocationOccupied = (location: string) => {
-    return occupiedLocations.includes(location);
+    const code = `Pasillo ${location}`;
+    const cell = apiLocations.find((l) => l.code === code || l.code === location);
+    if (!cell) return false;
+    return cell.status === 'full' || cell.occupancy_percent >= 100;
+  };
+
+  const getLocationOccupancyPct = (location: string) => {
+    const code = `Pasillo ${location}`;
+    const cell = apiLocations.find((l) => l.code === code || l.code === location);
+    return cell ? Math.round(cell.occupancy_percent) : 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -563,14 +574,14 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                                 className="inline-block px-1.5 sm:px-2 py-0.5 rounded-full bg-[#EF4444]/20"
                                 style={{ fontSize: '9px', fontWeight: '600', color: '#DC2626' }}
                               >
-                                Ocup.
+                                {getLocationOccupancyPct(location)}% lleno
                               </span>
                             ) : (
                               <span
                                 className="inline-block px-1.5 sm:px-2 py-0.5 rounded-full bg-[#10B981]/10"
                                 style={{ fontSize: '9px', fontWeight: '600', color: '#059669' }}
                               >
-                                Disp.
+                                {getLocationOccupancyPct(location) > 0 ? `${getLocationOccupancyPct(location)}%` : 'Disp.'}
                               </span>
                             )}
                           </div>

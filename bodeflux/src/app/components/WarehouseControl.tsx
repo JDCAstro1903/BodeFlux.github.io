@@ -13,6 +13,7 @@ export function WarehouseControl() {
   const [showScanOutput, setShowScanOutput] = useState(false);
   const [showRegisterWaste, setShowRegisterWaste] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastEntry, setLastEntry] = useState<{ product: string; quantity: string; type: 'entry' | 'output' | 'waste' } | null>(null);
 
   // Active items as recent shipments
@@ -87,7 +88,8 @@ export function WarehouseControl() {
       });
       setShowSuccessToast(true);
     } catch (err) {
-      console.error('Error registering entry:', err);
+      const msg = err instanceof Error ? err.message : 'Error al registrar la entrada';
+      setErrorMessage(msg);
     }
   };
 
@@ -106,7 +108,8 @@ export function WarehouseControl() {
       setLastEntry({ product: output.productName, quantity: `${output.quantity} ${output.unit}`, type: 'output' });
       setShowSuccessToast(true);
     } catch (err) {
-      console.error('Error registering output:', err);
+      const msg = err instanceof Error ? err.message : 'Error al registrar la salida';
+      setErrorMessage(msg);
     }
   };
 
@@ -127,7 +130,8 @@ export function WarehouseControl() {
       setLastEntry({ product: waste.productName, quantity: `${waste.quantity} ${waste.unit}`, type: 'waste' });
       setShowSuccessToast(true);
     } catch (err) {
-      console.error('Error registering waste:', err);
+      const msg = err instanceof Error ? err.message : 'Error al registrar la merma';
+      setErrorMessage(msg);
     }
   };
 
@@ -139,6 +143,15 @@ export function WarehouseControl() {
       return () => clearTimeout(timer);
     }
   }, [showSuccessToast]);
+
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -375,6 +388,30 @@ export function WarehouseControl() {
                 {lastEntry.product} - {lastEntry.quantity}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Toast */}
+      {errorMessage && (
+        <div className="fixed bottom-24 md:bottom-8 right-8 max-w-sm animate-slide-in-up z-50">
+          <div
+            className="rounded-[20px] p-4 text-white flex items-center gap-3 bg-gradient-to-br from-[#B91C1C] to-[#7F1D1D]"
+            style={{ boxShadow: '0 12px 40px rgba(185, 28, 28, 0.5)' }}
+          >
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: '14px', fontWeight: '600' }}>Error</div>
+              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)', wordBreak: 'break-word' }}>{errorMessage}</div>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0 transition-all"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}

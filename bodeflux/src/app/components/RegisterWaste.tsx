@@ -88,6 +88,11 @@ export function RegisterWaste({ isOpen, onClose, onSubmit }: RegisterWasteProps)
       return;
     }
 
+    if (selectedItem && formData.quantity > selectedItem.quantity) {
+      alert(`La cantidad de merma (${formData.quantity} ${formData.unit}) excede el stock disponible en este lote (${selectedItem.quantity} ${selectedItem.unit}).`);
+      return;
+    }
+
     onSubmit(formData);
     setFormData({
       inventoryItemId: 0,
@@ -314,12 +319,27 @@ export function RegisterWaste({ isOpen, onClose, onSubmit }: RegisterWasteProps)
                     required
                     min="0.01"
                     step="0.01"
+                    max={selectedItem?.quantity}
                     value={formData.quantity || ''}
                     onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                    className="w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] dark:text-white dark:placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#EF4444]/50 focus:bg-white dark:focus:bg-[#3A3A3C] transition-all"
+                    className={`w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border-2 dark:text-white dark:placeholder-[#6B7280] focus:outline-none transition-all ${
+                      selectedItem && formData.quantity > selectedItem.quantity
+                        ? 'border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/50'
+                        : 'border-gray-200 dark:border-[#3A3A3C] focus:ring-2 focus:ring-[#EF4444]/50 focus:bg-white dark:focus:bg-[#3A3A3C]'
+                    }`}
                     placeholder="0"
                     style={{ fontSize: '14px' }}
                   />
+                  {selectedItem && formData.quantity > selectedItem.quantity && (
+                    <p className="mt-1.5 text-xs font-semibold text-[#EF4444]">
+                      ⚠️ Excede el stock disponible ({selectedItem.quantity} {selectedItem.unit})
+                    </p>
+                  )}
+                  {selectedItem && formData.quantity <= selectedItem.quantity && formData.quantity > 0 && (
+                    <p className="mt-1.5 text-xs text-[#6B7280] dark:text-[#9CA3AF]">
+                      Disponible: {selectedItem.quantity} {selectedItem.unit}
+                    </p>
+                  )}
                 </div>
 
                 {/* Unit */}
