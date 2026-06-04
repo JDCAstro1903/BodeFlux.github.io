@@ -78,7 +78,13 @@ export function WarehouseControl() {
         providerId: entry.providerId,
         receiptDate: entry.receiptDate,
       });
-      setLastEntry({ product: entry.productName, quantity: `${entry.quantity} ${entry.unit}`, type: 'entry' });
+      setLastEntry({
+        product: entry.productName,
+        quantity: entry.presentationValue
+          ? `${entry.quantity} ${entry.presentationName} (${entry.quantity * entry.presentationValue} ${entry.unit})`
+          : `${entry.quantity} ${entry.unit}`,
+        type: 'entry',
+      });
       setShowSuccessToast(true);
     } catch (err) {
       console.error('Error registering entry:', err);

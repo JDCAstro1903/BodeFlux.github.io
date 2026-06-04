@@ -52,9 +52,29 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
     const stamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
     const idPart = String(product.id).padStart(3, '0');
     const lotNumber = `LOT-${idPart}-${stamp}`;
+
+    const defaultPres = product.presentations?.find(p => p.is_default && p.is_active)
+      || product.presentations?.find(p => p.is_active)
+      || product.presentations?.[0];
+
+    let presName = defaultPres ? defaultPres.presentation_name : undefined;
+    let presValue = defaultPres ? defaultPres.content_value : undefined;
+
+    if (!defaultPres) {
+      if (product.unit === 'kg') {
+        presName = 'Costal de 5kg';
+        presValue = 5;
+      } else if (product.unit === 'L') {
+        presName = 'Botella de 1L';
+        presValue = 1;
+      }
+    }
+
     setFormData({
       ...formData,
       productId: product.id,
+      presentationName: presName,
+      presentationValue: presValue,
       productName: product.name,
       category: product.category,
       unit: product.unit,
@@ -70,8 +90,8 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
 
   const [formData, setFormData] = useState<EntryData>({
     productId: undefined,
-    presentationName: undefined,
-    presentationValue: undefined,
+    presentationName: 'Costal de 5kg',
+    presentationValue: 5,
     productName: '',
     category: '',
     quantity: 0,
@@ -231,7 +251,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
               </div>
 
               {/* Presentation (Dynamic based on unit) */}
-              {(selectedProduct?.unit === 'kg' || selectedProduct?.unit === 'L' || (selectedProduct?.presentations && selectedProduct.presentations.length > 0)) && (
+              {(formData.unit === 'kg' || formData.unit === 'L' || (selectedProduct?.presentations && selectedProduct.presentations.length > 0)) && (
                 <div>
                   <label className="flex items-center gap-2 mb-2 text-[#6B7280] dark:text-[#9CA3AF]" style={{ fontSize: '13px', fontWeight: '500' }}>
                     <Package size={16} />
@@ -261,7 +281,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                     ))}
                     
                     {/* Default templates if none exist in DB */}
-                    {(!selectedProduct?.presentations || selectedProduct.presentations.length === 0) && selectedProduct?.unit === 'kg' && (
+                    {(!selectedProduct?.presentations || selectedProduct.presentations.length === 0) && formData.unit === 'kg' && (
                       <>
                         <option value="Costal de 5kg|5">Costal de 5kg</option>
                         <option value="Costal de 10kg|10">Costal de 10kg</option>
@@ -270,7 +290,7 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                         <option value="Costal de 50kg|50">Costal de 50kg</option>
                       </>
                     )}
-                    {(!selectedProduct?.presentations || selectedProduct.presentations.length === 0) && selectedProduct?.unit === 'L' && (
+                    {(!selectedProduct?.presentations || selectedProduct.presentations.length === 0) && formData.unit === 'L' && (
                       <>
                         <option value="Botella de 1L|1">Botella de 1L</option>
                         <option value="Garrafón de 5L|5">Garrafón de 5L</option>
@@ -359,7 +379,27 @@ export function RegisterEntry({ isOpen, onClose, onSubmit }: RegisterEntryProps)
                 <select
                   required
                   value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  onChange={(e) => {
+                    const newUnit = e.target.value;
+                    let presName = formData.presentationName;
+                    let presValue = formData.presentationValue;
+                    if (newUnit !== 'kg' && newUnit !== 'L') {
+                      presName = undefined;
+                      presValue = undefined;
+                    } else if (newUnit === 'kg' && (!selectedProduct?.presentations || selectedProduct.presentations.length === 0)) {
+                      presName = 'Costal de 5kg';
+                      presValue = 5;
+                    } else if (newUnit === 'L' && (!selectedProduct?.presentations || selectedProduct.presentations.length === 0)) {
+                      presName = 'Botella de 1L';
+                      presValue = 1;
+                    }
+                    setFormData({
+                      ...formData,
+                      unit: newUnit,
+                      presentationName: presName,
+                      presentationValue: presValue,
+                    });
+                  }}
                   className="w-full px-4 py-3 rounded-[16px] bg-[#F3F4F6] dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/50 focus:bg-white dark:focus:bg-[#3A3A3C] transition-all"
                   style={{ fontSize: '14px' }}
                 >

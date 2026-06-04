@@ -220,7 +220,7 @@ def create_item(
     movement = InventoryMovement(
         inventory_item_id=item.id,
         movement_type="entry",
-        quantity=payload.quantity,
+        quantity=final_quantity,
         user_id=current_user.id if current_user else None,
         notes=f"Entrada de {product.name}",
     )
